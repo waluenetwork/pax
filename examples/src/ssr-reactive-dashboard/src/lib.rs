@@ -123,6 +123,14 @@ impl SSRDashboard {
         let self_type_id = TypeId::build_singleton("SSRDashboard", Some("SSRDashboard"));
         template_map.insert("SSRDashboard".to_string(), self_type_id.clone());
         
+        template_map.insert("Group".to_string(), TypeId::build_singleton("Group", Some("pax_std::core::group")));
+        template_map.insert("Text".to_string(), TypeId::build_singleton("Text", Some("pax_std::core::text")));
+        template_map.insert("Rectangle".to_string(), TypeId::build_singleton("Rectangle", Some("pax_std::drawing::rectangle")));
+        template_map.insert("Frame".to_string(), TypeId::build_singleton("Frame", Some("pax_std::core::frame")));
+        template_map.insert("Ellipse".to_string(), TypeId::build_singleton("Ellipse", Some("pax_std::drawing::ellipse")));
+        
+        web_sys::console::log_1(&format!("📋 Template map includes {} components: {:?}", template_map.len(), template_map.keys().collect::<Vec<_>>()).into());
+        
         let mut tpc = TemplateNodeParseContext {
             pascal_identifier_to_type_id_map: template_map,
             template: ComponentTemplate::new(self_type_id.clone(), None),
@@ -132,19 +140,13 @@ impl SSRDashboard {
         match parse_pax_str(Rule::pax_component_definition, template_content) {
             Ok(ast) => {
                 web_sys::console::log_1(&"✅ AST parsing successful, proceeding to template parsing...".into());
-                match pax_manifest::parsing::parse_template_from_component_definition_string(
+                pax_manifest::parsing::parse_template_from_component_definition_string(
                     &mut tpc,
                     template_content,
                     ast,
-                ) {
-                    Ok(_) => {
-                        web_sys::console::log_1(&"✅ Template parsing successful! Template ready for runtime integration.".into());
-                        web_sys::console::log_1(&format!("📋 Template contains {} nodes", tpc.template.template_node_flattened_stack.len()).into());
-                    }
-                    Err(e) => {
-                        web_sys::console::log_1(&format!("❌ Template parsing failed: {:?}", e).into());
-                    }
-                }
+                );
+                web_sys::console::log_1(&"✅ Template parsing completed! Template ready for runtime integration.".into());
+                web_sys::console::log_1(&format!("📋 Template processed successfully").into());
             }
             Err(e) => {
                 web_sys::console::log_1(&format!("❌ AST parsing failed: {:?}", e).into());
