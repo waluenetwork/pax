@@ -1,10 +1,19 @@
 #![allow(unused_imports)]
 
 use pax_kit::*;
+use pax_lang::{parse_pax_str, Rule};
+use pax_manifest::{ComponentTemplate, parsing::TemplateNodeParseContext, TypeId};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{WebSocket, MessageEvent, CloseEvent, ErrorEvent};
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize)]
+pub enum WebSocketMessage {
+    Data(Vec<DataItem>),
+    Template(String),
+}
 
 #[pax]
 #[main]
@@ -51,20 +60,96 @@ impl SSRDashboard {
         let onmessage_callback = Closure::wrap(Box::new(move |e: MessageEvent| {
             if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
                 let data_str: String = txt.into();
-                if let Ok(data) = serde_json::from_str::<Vec<DataItem>>(&data_str) {
+                web_sys::console::log_1(&format!("📨 Received WebSocket message: {}", data_str).into());
+                
+                if let Ok(message) = serde_json::from_str::<WebSocketMessage>(&data_str) {
+                    match message {
+                        WebSocketMessage::Data(data) => {
+                            web_sys::console::log_1(&format!("📊 Processing data message with {} items", data.len()).into());
+                            server_data.set(data);
+                            let now = js_sys::Date::new_0();
+                            last_update.set(format!("Data updated: {}", now.to_locale_time_string("en-US")));
+                        }
+                        WebSocketMessage::Template(template) => {
+                            web_sys::console::log_1(&format!("🎨 Processing template message: {}", template).into());
+                            let now = js_sys::Date::new_0();
+                            last_update.set(format!("Template updated: {}", now.to_locale_time_string("en-US")));
+                            
+                            SSRDashboard::parse_and_apply_template(&template);
+                        }
+                    }
+                } else if let Ok(data) = serde_json::from_str::<Vec<DataItem>>(&data_str) {
+                    web_sys::console::log_1(&format!("📊 Processing legacy data message with {} items", data.len()).into());
                     server_data.set(data);
                     let now = js_sys::Date::new_0();
-                    last_update.set(format!("Last updated: {}", now.to_locale_time_string("en-US")));
+                    last_update.set(format!("Legacy data updated: {}", now.to_locale_time_string("en-US")));
+                } else {
+                    web_sys::console::log_1(&format!("❌ Failed to parse WebSocket message: {}", data_str).into());
                 }
             }
         }) as Box<dyn FnMut(_)>);
         ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
         onmessage_callback.forget();
 
+        let connection_status_open = connection_status.clone();
         let onopen_callback = Closure::wrap(Box::new(move |_: web_sys::Event| {
-            connection_status.set("Connected".to_string());
+            web_sys::console::log_1(&"🔗 WebSocket connection opened".into());
+            connection_status_open.set("Connected".to_string());
         }) as Box<dyn FnMut(web_sys::Event)>);
         ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
         onopen_callback.forget();
+
+        let connection_status_error = connection_status.clone();
+        let onerror_callback = Closure::wrap(Box::new(move |e: ErrorEvent| {
+            web_sys::console::log_1(&format!("❌ WebSocket error: {:?}", e).into());
+            connection_status_error.set("Error".to_string());
+        }) as Box<dyn FnMut(ErrorEvent)>);
+        ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
+        onerror_callback.forget();
+
+        let connection_status_close = connection_status.clone();
+        let onclose_callback = Closure::wrap(Box::new(move |e: CloseEvent| {
+            web_sys::console::log_1(&format!("🔌 WebSocket closed: code={}, reason={}", e.code(), e.reason()).into());
+            connection_status_close.set("Disconnected".to_string());
+        }) as Box<dyn FnMut(CloseEvent)>);
+        ws.set_onclose(Some(onclose_callback.as_ref().unchecked_ref()));
+        onclose_callback.forget();
+    }
+
+    pub fn parse_and_apply_template(template_content: &str) {
+        web_sys::console::log_1(&format!("🔄 Attempting to parse template ({} chars): {}", template_content.len(), template_content).into());
+        
+        let mut template_map: HashMap<String, TypeId> = HashMap::new();
+        let self_type_id = TypeId::build_singleton("SSRDashboard", Some("SSRDashboard"));
+        template_map.insert("SSRDashboard".to_string(), self_type_id.clone());
+        
+        let mut tpc = TemplateNodeParseContext {
+            pascal_identifier_to_type_id_map: template_map,
+            template: ComponentTemplate::new(self_type_id.clone(), None),
+        };
+        
+        web_sys::console::log_1(&"🔍 Starting AST parsing...".into());
+        match parse_pax_str(Rule::pax_component_definition, template_content) {
+            Ok(ast) => {
+                web_sys::console::log_1(&"✅ AST parsing successful, proceeding to template parsing...".into());
+                match pax_manifest::parsing::parse_template_from_component_definition_string(
+                    &mut tpc,
+                    template_content,
+                    ast,
+                ) {
+                    Ok(_) => {
+                        web_sys::console::log_1(&"✅ Template parsing successful! Template ready for runtime integration.".into());
+                        web_sys::console::log_1(&format!("📋 Template contains {} nodes", tpc.template.template_node_flattened_stack.len()).into());
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&format!("❌ Template parsing failed: {:?}", e).into());
+                    }
+                }
+            }
+            Err(e) => {
+                web_sys::console::log_1(&format!("❌ AST parsing failed: {:?}", e).into());
+                web_sys::console::log_1(&"💡 Hint: Check template syntax - ensure proper Pax DSL format".into());
+            }
+        }
     }
 }
