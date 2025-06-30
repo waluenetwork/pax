@@ -12,7 +12,31 @@ Pax is two things that work together: (1) a vector design tool and (2) a cross-p
 
 ## Get Started
 
+### Option 1: Use Published Version (Recommended for New Users)
 Follow the [Get Started](https://docs.pax.dev/get-started/) instructions in the docs.
+
+### Option 2: Build from Source Code (For Development & Contributions)
+See [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) for complete instructions on building and running Pax from source code.
+
+**Quick Start for Source Code:**
+```bash
+# Clone and build
+git clone https://github.com/waluenetwork/pax.git
+cd pax
+
+# Build web interface files first (critical!)
+cd pax-compiler/files/interfaces/web && ./build-interface.sh
+
+# Build pax-cli
+cd ../../../ && cargo build --release -p pax-cli
+
+# Run examples
+cd examples/src/increment
+/path/to/pax/target/release/pax-cli run --target=web
+```
+
+### Option 3: GitHub Releases
+Download pre-built binaries from [GitHub Releases](https://github.com/waluenetwork/pax/releases) (coming soon).
 
 ## Features
 
@@ -55,11 +79,24 @@ You can build a real-world app with Pax today — see [pax-designer](https://git
 4. Web target is leading edge — macos and ios build targets are maintained for architectural soundness, but are several features behind the web target, e.g. occlusion and clipping.  We expect to continue prioritizing Web target development for the near term.  For mobile / desktop targets at this milestone, we recommend wrapping Pax Web with a webview e.g. Tauri.
 
 
-## Contribution
+## Development & Contribution
 
-Pax is open source and we welcome contributions.  See [CONTRIBUTING.md](CONTRIBUTING.md)
+### For Contributors & Fork Development
 
-We collaborate publicly on the [#contribution](https://discord.com/invite/Eq8KWAUc6b) channel of our community Discord — feel free to [drop in and chat.](https://discord.com/invite/Eq8KWAUc6b)
+**Local Development:** See [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) for complete instructions on building and running Pax from source code.
+
+**Release Process:** See [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for creating GitHub releases with pre-built binaries.
+
+**Contributing:** Pax is open source and we welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+**Community:** We collaborate publicly on the [#contribution](https://discord.com/invite/Eq8KWAUc6b) channel of our community Discord — feel free to [drop in and chat.](https://discord.com/invite/Eq8KWAUc6b)
+
+### Build Status & Quality
+
+- ✅ **Local Source Build**: Fixed embedded template extraction (PR #1)
+- ✅ **Examples Verified**: Increment, Calculator, Fireworks all working
+- ✅ **Cross-Platform**: Linux, macOS, Windows support
+- 🔄 **Release Pipeline**: Automated cross-compilation and GitHub releases
 
 
 ## Why?
