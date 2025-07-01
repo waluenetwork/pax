@@ -21,6 +21,12 @@ pub enum TauriPaxError {
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
     
+    #[error("Engine error: {0}")]
+    Engine(String),
+    
+    #[error("Message error: {0}")]
+    Message(String),
+    
     #[error("Generic error: {0}")]
     Generic(#[from] anyhow::Error),
 }

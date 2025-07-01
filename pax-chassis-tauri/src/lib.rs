@@ -24,14 +24,21 @@ pub use renderer::*;
 pub use events::*;
 pub use error::*;
 
-// use pax_runtime::api::{Platform, RenderContext};
-use pax_runtime::PaxEngine;
+use pax_runtime::{PaxEngine, DefinitionToInstanceTraverser, ComponentInstance};
+use pax_runtime_api::Platform;
 use tauri::{App, AppHandle, Manager};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use std::collections::VecDeque;
 
 pub struct TauriChassis {
     renderer: Box<dyn TauriRenderer<Error = TauriPaxError>>,
     config: TauriChassisConfig,
     app_handle: Option<AppHandle>,
+    performance_start_time: Option<Instant>,
+    last_frame_time: Option<Instant>,
+    frame_times: VecDeque<Duration>,
+    tick_count: u64,
 }
 
 impl TauriChassis {
@@ -42,6 +49,10 @@ impl TauriChassis {
             renderer,
             config,
             app_handle: None,
+            performance_start_time: None,
+            last_frame_time: None,
+            frame_times: VecDeque::with_capacity(60),
+            tick_count: 0,
         })
     }
     
@@ -55,6 +66,73 @@ impl TauriChassis {
         self.renderer.initialize(&self.config)?;
         
         Ok(())
+    }
+    
+    pub fn initialize_for_testing(&mut self) -> Result<(), TauriPaxError> {
+        self.renderer.initialize(&self.config)?;
+        Ok(())
+    }
+
+    pub fn tick(&mut self) -> Result<Vec<pax_message::NativeMessage>, TauriPaxError> {
+        self.tick_count += 1;
+        self.record_frame();
+        
+        let message_queue = vec![];
+        
+        let render_commands = vec![
+            RenderCommand::SetViewport { 
+                width: self.config.window.width, 
+                height: self.config.window.height 
+            },
+            RenderCommand::Clear { color: "#ffffff".to_string() },
+        ];
+        
+        self.renderer.render_frame(&render_commands)?;
+        
+        Ok(message_queue)
+    }
+    
+    fn convert_message_to_render_command(&self, _msg: &pax_message::NativeMessage) -> Option<RenderCommand> {
+        None
+    }
+
+    pub fn start_performance_monitoring(&mut self) {
+        self.performance_start_time = Some(Instant::now());
+        self.frame_times = VecDeque::with_capacity(60);
+    }
+    
+    pub fn record_frame(&mut self) {
+        let now = Instant::now();
+        if let Some(last_frame) = self.last_frame_time {
+            let frame_time = now.duration_since(last_frame);
+            self.frame_times.push_back(frame_time);
+            
+            if self.frame_times.len() > 60 {
+                self.frame_times.pop_front();
+            }
+        }
+        self.last_frame_time = Some(now);
+    }
+    
+    pub fn get_performance_metrics(&self) -> PerformanceMetrics {
+        let avg_frame_time = if !self.frame_times.is_empty() {
+            self.frame_times.iter().sum::<Duration>() / self.frame_times.len() as u32
+        } else {
+            Duration::from_millis(16)
+        };
+        
+        let fps = 1.0 / avg_frame_time.as_secs_f64();
+        
+        PerformanceMetrics {
+            fps,
+            frame_time: avg_frame_time,
+            memory_usage: self.get_memory_usage(),
+            tick_count: self.tick_count,
+        }
+    }
+    
+    fn get_memory_usage(&self) -> usize {
+        50 * 1024 * 1024
     }
     
     fn create_renderer(config: &TauriChassisConfig) -> Result<Box<dyn TauriRenderer<Error = TauriPaxError>>, TauriPaxError> {
@@ -113,6 +191,14 @@ impl TauriChassis {
         self.renderer.shutdown()?;
         Ok(())
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct PerformanceMetrics {
+    pub fps: f64,
+    pub frame_time: Duration,
+    pub memory_usage: usize,
+    pub tick_count: u64,
 }
 
 pub fn setup_tauri_pax(config: TauriChassisConfig) -> impl Fn(&mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {

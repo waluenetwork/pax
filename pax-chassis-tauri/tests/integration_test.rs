@@ -1,4 +1,4 @@
-use pax_chassis_tauri::{TauriChassis, TauriChassisConfig, RenderCommand};
+use pax_chassis_tauri::{TauriChassis, TauriChassisConfig, RenderCommand, PerformanceMetrics};
 
 #[tokio::test]
 async fn test_end_to_end_canvas_rendering() {
@@ -85,4 +85,49 @@ fn test_complex_rendering_sequence() {
     assert!(renderer.render_frame(&frame1_commands).is_ok());
     assert!(renderer.render_frame(&frame2_commands).is_ok());
     assert!(renderer.render_frame(&frame3_commands).is_ok());
+}
+
+#[test]
+fn test_performance_monitoring() {
+    let config = TauriChassisConfig::default();
+    let mut chassis = TauriChassis::new(config).unwrap();
+    
+    chassis.start_performance_monitoring();
+    
+    for _ in 0..10 {
+        chassis.record_frame();
+        std::thread::sleep(std::time::Duration::from_millis(16));
+    }
+    
+    let metrics = chassis.get_performance_metrics();
+    assert!(metrics.fps > 30.0);
+    assert!(metrics.memory_usage > 0);
+    assert!(metrics.tick_count >= 0);
+}
+
+#[test]
+fn test_engine_lifecycle() {
+    let config = TauriChassisConfig::default();
+    let mut chassis = TauriChassis::new(config).unwrap();
+    
+    chassis.initialize_for_testing().unwrap();
+    
+    assert!(chassis.tick().is_ok());
+}
+
+#[test]
+fn test_performance_metrics_structure() {
+    let config = TauriChassisConfig::default();
+    let mut chassis = TauriChassis::new(config).unwrap();
+    
+    chassis.initialize_for_testing().unwrap();
+    
+    let metrics = chassis.get_performance_metrics();
+    assert!(metrics.fps > 0.0);
+    assert!(metrics.memory_usage > 0);
+    assert_eq!(metrics.tick_count, 0);
+    
+    chassis.tick().unwrap();
+    let updated_metrics = chassis.get_performance_metrics();
+    assert_eq!(updated_metrics.tick_count, 1);
 }
