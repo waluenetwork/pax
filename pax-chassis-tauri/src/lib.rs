@@ -26,14 +26,11 @@ pub use error::*;
 
 // use pax_runtime::api::{Platform, RenderContext};
 use pax_runtime::PaxEngine;
-use std::rc::Rc;
-use std::cell::RefCell;
 use tauri::{App, AppHandle, Manager};
 
 pub struct TauriChassis {
-    renderer: Box<dyn TauriRenderer>,
+    renderer: Box<dyn TauriRenderer<Error = TauriPaxError>>,
     config: TauriChassisConfig,
-    engine: Option<Rc<RefCell<PaxEngine>>>,
     app_handle: Option<AppHandle>,
 }
 
@@ -44,20 +41,23 @@ impl TauriChassis {
         Ok(Self {
             renderer,
             config,
-            engine: None,
             app_handle: None,
         })
     }
     
     pub fn initialize(&mut self, app: &App) -> Result<(), TauriPaxError> {
-        self.app_handle = Some(app.handle());
-        self.renderer.initialize(&self.config)?;
+        self.app_handle = Some(app.handle().clone());
         
+        if let Some(js_renderer) = self.renderer.as_any_mut().downcast_mut::<javascript::JavaScriptRenderer>() {
+            js_renderer.set_app_handle(app.handle().clone());
+        }
+        
+        self.renderer.initialize(&self.config)?;
         
         Ok(())
     }
     
-    fn create_renderer(config: &TauriChassisConfig) -> Result<Box<dyn TauriRenderer>, TauriPaxError> {
+    fn create_renderer(config: &TauriChassisConfig) -> Result<Box<dyn TauriRenderer<Error = TauriPaxError>>, TauriPaxError> {
         match config.rendering_mode {
             #[cfg(feature = "javascript-bridge")]
             RenderingMode::JavaScript => {
@@ -122,7 +122,6 @@ mod tests {
         assert!(chassis.is_ok());
         
         let chassis = chassis.unwrap();
-        assert!(chassis.engine.is_none());
         assert!(chassis.app_handle.is_none());
     }
     
@@ -160,19 +159,30 @@ mod tests {
         assert_eq!(config.window.width, 800);
         assert_eq!(config.window.height, 600);
         assert!(config.window.resizable);
-        assert!(!config.window.fullscreen);
+        assert!(!config.window.maximized);
     }
     
     #[test]
     fn test_rendering_mode_availability() {
-        let js_mode = RenderingMode::JavaScript;
-        assert_eq!(js_mode.is_available(), cfg!(feature = "javascript-bridge"));
+        #[cfg(feature = "javascript-bridge")]
+        {
+            let config = TauriChassisConfig {
+                rendering_mode: RenderingMode::JavaScript,
+                ..Default::default()
+            };
+            let renderer = TauriChassis::create_renderer(&config);
+            assert!(renderer.is_ok());
+        }
         
-        let native_mode = RenderingMode::Native;
-        assert_eq!(native_mode.is_available(), cfg!(feature = "native-graphics"));
-        
-        let hybrid_mode = RenderingMode::Hybrid;
-        assert_eq!(hybrid_mode.is_available(), cfg!(feature = "hybrid-mode"));
+        #[cfg(not(feature = "native-graphics"))]
+        {
+            let config = TauriChassisConfig {
+                rendering_mode: RenderingMode::Native,
+                ..Default::default()
+            };
+            let renderer = TauriChassis::create_renderer(&config);
+            assert!(renderer.is_err());
+        }
     }
     
     #[test]

@@ -11,6 +11,8 @@ pub trait TauriRenderer: Send + Sync {
     fn handle_event(&mut self, event: TauriEvent) -> Result<Option<PaxEvent>, Self::Error>;
     
     fn shutdown(&mut self) -> Result<(), Self::Error>;
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
 #[derive(Debug, Clone)]

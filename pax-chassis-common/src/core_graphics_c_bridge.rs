@@ -8,8 +8,10 @@ use std::ffi::c_void;
 use std::mem::{transmute, ManuallyDrop};
 use std::rc::Rc;
 
+#[cfg(target_os = "macos")]
 use core_graphics::context::CGContext;
 use pax_runtime::api::math::Point2;
+#[cfg(target_os = "macos")]
 use piet_coregraphics::CoreGraphicsContext;
 
 use flexbuffers;
@@ -32,6 +34,7 @@ pub struct PaxEngineContainer {
 }
 
 /// Destroy `engine` and clean up the `ManuallyDrop` container surround it.
+#[cfg(target_os = "macos")]
 #[no_mangle]
 pub extern "C" fn pax_dealloc_engine(_container: *mut PaxEngineContainer) {
     //particularly for when we need to support elegant clean-up from attached harness
@@ -42,6 +45,7 @@ pub extern "C" fn pax_dealloc_engine(_container: *mut PaxEngineContainer) {
 /// Note that in any single-threaded environment, these interrupts will happen
 /// synchronously between engine ticks, allowing for safe unwrapping / borrowing
 /// of engine and runtime here.
+#[cfg(target_os = "macos")]
 #[no_mangle]
 pub extern "C" fn pax_interrupt(
     engine_container: *mut PaxEngineContainer,
@@ -112,6 +116,7 @@ pub extern "C" fn pax_interrupt(
 /// Perform full tick of engine, including property computation, lifecycle event handling, and rendering side-effects.
 /// Returns a message queue of native rendering actions encoded as a Flexbuffer via FFI to Swift.
 /// The returned message queue requires explicit deallocation: `pax_deallocate_message_queue`
+#[cfg(target_os = "macos")]
 #[no_mangle] //Exposed to Swift via PaxCartridge.h
 pub extern "C" fn pax_tick(
     engine_container: *mut PaxEngineContainer,
@@ -164,6 +169,7 @@ pub extern "C" fn pax_tick(
 
 /// Required manual cleanup callback from Swift after reading a frame's message queue.
 /// If this is not called after `pax_tick` is invoked, we will have a memory leak.
+#[cfg(target_os = "macos")]
 #[no_mangle] //Exposed to Swift via PaxCartridge.h
 pub extern "C" fn pax_dealloc_message_queue(queue: *mut NativeMessageQueue) {
     unsafe {
