@@ -63,17 +63,32 @@ impl TauriChassis {
             RenderingMode::JavaScript => {
                 Ok(Box::new(javascript::JavaScriptRenderer::new()?))
             }
+            #[cfg(not(feature = "javascript-bridge"))]
+            RenderingMode::JavaScript => {
+                Err(TauriPaxError::Configuration(
+                    "JavaScript rendering mode not available - enable 'javascript-bridge' feature".to_string()
+                ))
+            }
             #[cfg(feature = "native-graphics")]
             RenderingMode::Native => {
                 Ok(Box::new(native::NativeRenderer::new()?))
+            }
+            #[cfg(not(feature = "native-graphics"))]
+            RenderingMode::Native => {
+                Err(TauriPaxError::Configuration(
+                    "Native rendering mode not available - enable 'native-graphics' feature".to_string()
+                ))
             }
             #[cfg(feature = "hybrid-mode")]
             RenderingMode::Hybrid => {
                 Ok(Box::new(hybrid::HybridRenderer::new()?))
             }
-            _ => Err(TauriPaxError::Configuration(
-                "Requested rendering mode not available with current feature flags".into()
-            )),
+            #[cfg(not(feature = "hybrid-mode"))]
+            RenderingMode::Hybrid => {
+                Err(TauriPaxError::Configuration(
+                    "Hybrid rendering mode not available - enable 'hybrid-mode' feature".to_string()
+                ))
+            }
         }
     }
     

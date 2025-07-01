@@ -38,4 +38,8 @@ impl TauriRenderer for NativeRenderer {
             "Native renderer not yet implemented".into()
         ))
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
