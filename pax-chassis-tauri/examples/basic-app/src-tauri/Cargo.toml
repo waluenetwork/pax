@@ -5,11 +5,11 @@ edition = "2021"
 
 [dependencies]
 pax-chassis-tauri = { path = "../../.." }
-tauri = { version = "2.0", features = ["shell-open"] }
+tauri = { version = "2.0", features = [] }
 env_logger = "0.11"
 
 [build-dependencies]
-tauri-build = { version = "2.0" }
+tauri-build = { version = "2.0", features = [] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

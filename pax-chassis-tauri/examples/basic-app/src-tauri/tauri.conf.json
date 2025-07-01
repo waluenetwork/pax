@@ -1,20 +1,15 @@
 {
+  "productName": "tauri-pax-basic-example",
+  "version": "0.1.0",
+  "identifier": "com.pax.tauri.basic-example",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devPath": "../dist",
-    "distDir": "../dist"
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "tauri-pax-basic-example",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "window": {
-        "all": true
-      }
+  "app": {
+    "security": {
+      "csp": null
     },
     "windows": [
       {
@@ -25,9 +20,6 @@
         "height": 600,
         "center": true
       }
-    ],
-    "security": {
-      "csp": null
-    }
+    ]
   }
 }
