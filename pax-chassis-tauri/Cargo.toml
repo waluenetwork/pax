@@ -1,0 +1,64 @@
+[package]
+name = "pax-chassis-tauri"
+version = "0.38.3"
+edition = "2021"
+authors = ["Zack Brown <zack@pax.dev>", "Warfa Jibril <warfa@pax.dev>", "Samuel Selleck <samuel@pax.dev>"]
+description = "Tauri chassis for Pax UI framework with dual-mode rendering"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# Core Pax dependencies
+pax-runtime = { version = "0.38.3", path = "../pax-runtime" }
+pax-runtime-api = { version = "0.38.3", path = "../pax-runtime-api" }
+pax-message = { version = "0.38.3", path = "../pax-message" }
+pax-chassis-common = { version = "0.38.3", path = "../pax-chassis-common" }
+
+# Tauri dependencies
+tauri = { version = "2.0" }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+log = "0.4"
+
+# Optional dependencies for different rendering backends
+web-sys = { version = "0.3", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+skia-safe = { version = "0.63", optional = true }
+raw-window-handle = { version = "0.5", optional = true }
+
+[features]
+default = ["javascript-bridge"]
+
+# Rendering backends
+javascript-bridge = ["web-sys", "wasm-bindgen", "js-sys"]
+native-graphics = ["skia-safe", "raw-window-handle"]
+hybrid-mode = ["javascript-bridge", "native-graphics"]
+
+# Platform-specific features
+macos-metal = []
+windows-d3d = []
+linux-vulkan = []
+
+# Performance features
+gpu-acceleration = []
+multi-threading = []
+simd-optimizations = []
+
+# Development features
+debug-overlay = []
+performance-monitoring = []
+
+[lib]
+name = "pax_chassis_tauri"
+crate-type = ["cdylib", "rlib"]

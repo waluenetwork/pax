@@ -1,0 +1,33 @@
+{
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "../dist",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "tauri-pax-basic-example",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "window": {
+        "all": true
+      }
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Tauri Pax Basic Example",
+        "width": 800,
+        "height": 600,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

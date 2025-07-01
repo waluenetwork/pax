@@ -1,0 +1,10 @@
+[package]
+name = "tauri-pax-basic-example-workspace"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pax-chassis-tauri = { path = "../.." }
+
+[workspace]
+members = ["src-tauri"]

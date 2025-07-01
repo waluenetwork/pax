@@ -10,6 +10,7 @@ members = [
     "pax-chassis-ios",
     "pax-chassis-macos",
     "pax-chassis-web",
+    "pax-chassis-tauri",
     "pax-cli",
     "pax-compiler",
     "pax-compiler",
@@ -38,4 +39,4 @@ exclude = [
 [profile.release]
 lto = true
 opt-level = "z" 
-codegen-units = 1  
+codegen-units = 1    
