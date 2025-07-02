@@ -215,11 +215,12 @@
 ## 📊 Güncellenmiş Öncelik Matrisi (Phase 2 Sonrası)
 
 ### 🔥 Yüksek Öncelik (Hemen Başlanabilir)
-1. **Interactive Component Testing** - Button click'leri ve property update'leri doğrulama
-2. **Windows Desktop Support** - Geniş kullanıcı tabanı, platform detection fixes
-3. **macOS Desktop Support** - Developer community, GTK dependency çözümü
-4. **Advanced NativeMessage Support** - Tam message type coverage
-5. **WGPU Integration** - Performance kritik
+1. **Hot Reload Implementation** - .pax dosya değişikliklerinde otomatik reload (TEST EDİLDİ: ÇALIŞMIYOR)
+2. **Interactive Component Testing** - Button click'leri ve property update'leri doğrulama
+3. **Windows Desktop Support** - Geniş kullanıcı tabanı, platform detection fixes
+4. **macOS Desktop Support** - Developer community, GTK dependency çözümü
+5. **Advanced NativeMessage Support** - Tam message type coverage
+6. **WGPU Integration** - Performance kritik
 
 ### 🟡 Orta Öncelik (3-6 ay içinde)
 1. **Mobile Platforms** - Uzun vadeli strateji
