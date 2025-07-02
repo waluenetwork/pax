@@ -11,16 +11,18 @@ use std::time::Duration;
 fn handle_button_click(chassis_state: State<Arc<Mutex<TauriChassis>>>) -> Result<String, String> {
     match chassis_state.lock() {
         Ok(mut chassis) => {
-            match chassis.handle_button_click() {
-                Ok(_) => {
-                    if let Some(app) = chassis.get_mock_example_app_state() {
-                        Ok(format!("Button clicked! Count: {}, Width: {}, Color: {:?}", 
-                                  app.click_count, app.rect_width, app.rect_color))
-                    } else {
-                        Ok("Button clicked but no ExampleApp found".to_string())
+            if let Err(e) = chassis.send_button_click() {
+                return Err(format!("Failed to send button click to PaxEngine: {:?}", e));
+            }
+            
+            match chassis.tick() {
+                Ok(messages) => {
+                    if let Err(e) = chassis.render() {
+                        return Err(format!("Render error: {:?}", e));
                     }
+                    Ok(format!("✅ Real Rust command executed! PaxEngine messages: {}, Canvas controlled by Pax runtime", messages.len()))
                 }
-                Err(e) => Err(format!("Error handling button click: {:?}", e))
+                Err(e) => Err(format!("Error processing button click: {:?}", e))
             }
         }
         Err(e) => Err(format!("Failed to lock chassis: {:?}", e))
@@ -35,13 +37,10 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![handle_button_click])
         .setup(|app| {
-            println!("Setting up Tauri-Pax application with Phase 3 interactive testing...");
+            println!("Setting up Tauri-Pax application...");
             
             let mut chassis = TauriChassis::new(config)?;
             chassis.initialize(app)?;
-            
-            println!("✅ Using MockExampleApp for Phase 3 interactive testing");
-            println!("Interactive functionality: Button clicks will update properties and visual state");
             
             chassis.start_performance_monitoring();
             
@@ -51,27 +50,28 @@ fn main() {
             app.manage(chassis_arc);
             
             thread::spawn(move || {
-                println!("Starting Phase 3 Pax rendering loop with MockExampleApp...");
+                println!("Starting Pax rendering loop...");
                 loop {
                     if let Ok(mut chassis) = chassis_clone.lock() {
                         match chassis.tick() {
                             Ok(messages) => {
                                 if !messages.is_empty() {
-                                    println!("Phase 3: Processed {} Pax messages", messages.len());
+                                    println!("Processed {} Pax messages", messages.len());
+                                }
+                                if let Err(e) = chassis.render() {
+                                    eprintln!("Render error: {:?}", e);
                                 }
                             }
                             Err(e) => {
-                                eprintln!("Phase 3 rendering error: {:?}", e);
+                                eprintln!("Tick error: {:?}", e);
                             }
                         }
                     }
-                    thread::sleep(Duration::from_millis(16)); // ~60 FPS
+                    thread::sleep(Duration::from_millis(16));
                 }
             });
             
-            println!("Phase 3: Tauri-Pax application with MockExampleApp ready!");
-            println!("MockExampleApp components: Rectangle, Text, Button with interactive testing");
-            println!("Interactive testing enabled - button clicks should update properties!");
+            println!("Tauri-Pax application ready!");
             Ok(())
         })
         .run(tauri::generate_context!())

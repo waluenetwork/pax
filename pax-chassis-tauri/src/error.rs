@@ -12,6 +12,9 @@ pub enum TauriPaxError {
     #[error("Event handling error: {0}")]
     Event(String),
     
+    #[error("Runtime error: {0}")]
+    Runtime(String),
+    
     #[error("Tauri error: {0}")]
     Tauri(#[from] tauri::Error),
     
