@@ -74,10 +74,12 @@ impl RenderContext for TauriRenderContext {
     fn clear(&mut self, layer: usize) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.clearRect(0, 0, element.width, element.height);
+                }}
             }}
             "#,
             layer
@@ -91,11 +93,13 @@ impl RenderContext for TauriRenderContext {
     fn flush(&mut self, layer: usize, _dirty_canvases: Rc<RefCell<Vec<bool>>>) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.save();
-                ctx.restore();
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.save();
+                    ctx.restore();
+                }}
             }}
             "#,
             layer
@@ -115,11 +119,13 @@ impl RenderContext for TauriRenderContext {
 
     fn resize(&mut self, _width: usize, _height: usize) {
         let script = r#"
-        const canvases = document.querySelectorAll('#pax-container canvas');
-        canvases.forEach(canvasElement => {
-            canvasElement.width = 600;
-            canvasElement.height = 400;
-        });
+        {
+            const canvases = document.querySelectorAll('#pax-container canvas');
+            canvases.forEach(element => {
+                element.width = 600;
+                element.height = 400;
+            });
+        }
         "#;
         
         if let Err(e) = self.execute_js(script) {
@@ -130,11 +136,13 @@ impl RenderContext for TauriRenderContext {
     fn fill(&mut self, _layer: usize, _path: kurbo::BezPath, _fill: &Fill) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.fillStyle = 'rgba(100, 150, 200, 0.8)';
-                ctx.fill();
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.fillStyle = 'rgba(100, 150, 200, 0.8)';
+                    ctx.fill();
+                }}
             }}
             "#,
             _layer
@@ -145,12 +153,14 @@ impl RenderContext for TauriRenderContext {
     fn stroke(&mut self, _layer: usize, _path: kurbo::BezPath, _fill: &Fill, _width: f64) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.strokeStyle = 'rgba(100, 150, 200, 0.8)';
-                ctx.lineWidth = {};
-                ctx.stroke();
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.strokeStyle = 'rgba(100, 150, 200, 0.8)';
+                    ctx.lineWidth = {};
+                    ctx.stroke();
+                }}
             }}
             "#,
             _layer, _width
@@ -161,10 +171,12 @@ impl RenderContext for TauriRenderContext {
     fn save(&mut self, _layer: usize) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.save();
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.save();
+                }}
             }}
             "#,
             _layer
@@ -175,10 +187,12 @@ impl RenderContext for TauriRenderContext {
     fn restore(&mut self, _layer: usize) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.restore();
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.restore();
+                }}
             }}
             "#,
             _layer
@@ -189,10 +203,12 @@ impl RenderContext for TauriRenderContext {
     fn clip(&mut self, _layer: usize, _path: kurbo::BezPath) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.clip();
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.clip();
+                }}
             }}
             "#,
             _layer
@@ -203,10 +219,12 @@ impl RenderContext for TauriRenderContext {
     fn transform(&mut self, _layer: usize, _transform: kurbo::Affine) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                ctx.setTransform({}, {}, {}, {}, {}, {});
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    ctx.setTransform({}, {}, {}, {}, {}, {});
+                }}
             }}
             "#,
             _layer, _transform.as_coeffs()[0], _transform.as_coeffs()[1], 
@@ -219,14 +237,16 @@ impl RenderContext for TauriRenderContext {
     fn draw_image(&mut self, _layer: usize, _path: &str, _rect: kurbo::Rect) {
         let script = format!(
             r#"
-            const canvasElement = document.getElementById('{}');
-            if (canvasElement) {{
-                const ctx = canvasElement.getContext('2d');
-                const img = new Image();
-                img.onload = function() {{
-                    ctx.drawImage(img, {}, {}, {}, {});
-                }};
-                img.src = '{}';
+            {{
+                const element = document.getElementById('{}');
+                if (element) {{
+                    const ctx = element.getContext('2d');
+                    const img = new Image();
+                    img.onload = function() {{
+                        ctx.drawImage(img, {}, {}, {}, {});
+                    }};
+                    img.src = '{}';
+                }}
             }}
             "#,
             _layer, _rect.x0, _rect.y0, _rect.width(), _rect.height(), _path
