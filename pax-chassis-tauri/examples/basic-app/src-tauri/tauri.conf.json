@@ -5,15 +5,18 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
   },
   "app": {
     "security": {
       "csp": null,
-      "dangerousDisableAssetCspModification": true
+      "dangerousDisableAssetCspModification": true,
+      "capabilities": ["default"]
     },
     "windows": [
       {
+        "label": "main",
         "fullscreen": false,
         "resizable": true,
         "title": "Tauri Pax Basic Example",
@@ -28,5 +31,9 @@
     "active": true,
     "targets": "all"
   },
-  "plugins": {}
+  "plugins": {
+    "core": {
+      "enabled": true
+    }
+  }
 }

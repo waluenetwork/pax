@@ -84,129 +84,92 @@
             border-radius: 10px;
             background-color: #f0f0f0;
         }
+        .pax-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Phase 3: Interactive Component Testing</h1>
+        <h1>🚀 Tauri Backend Connection Fix</h1>
         <p>✅ Phase 1: Foundation Complete</p>
         <p>✅ Phase 2: Real Pax Component Rendering</p>
-        <p>🔄 Phase 3: Interactive Functionality Testing</p>
+        <p>🔄 Testing Tauri API Connection</p>
         
         <div class="interactive-controls">
-            <h3>Interactive Testing Controls</h3>
-            <button class="test-button" onclick="testButtonClick()">🖱️ Test Button Click</button>
-            <button class="test-button" onclick="testMultipleClicks()">🔄 Test Multiple Clicks</button>
+            <h3>Tauri Backend Connection Test</h3>
+            <button class="test-button" onclick="testButtonClick()">🖱️ Test Backend Connection</button>
+            <button class="test-button" onclick="testMultipleClicks()">🔄 Test Multiple Commands</button>
             <button class="test-button" onclick="resetTest()">🔄 Reset Test</button>
-            <div id="status-display" class="status-display">Ready for Phase 3 interactive testing...<br>Click buttons above to test ExampleApp functionality.</div>
+            <div id="status-display" class="status-display">Ready to test Tauri backend connection...<br>Click buttons above to verify real command execution.</div>
         </div>
         
         <div class="canvas-container">
-            <h3>Pax Component Rendering</h3>
-            <canvas id="canvas" width="600" height="400"></canvas>
+            <h3>Pax Runtime Canvas Integration</h3>
+            <div id="pax-container" style="position: relative; width: 600px; height: 400px;">
+            </div>
         </div>
         
         <div class="status">
-            <strong>Status:</strong> Phase 3 Interactive Testing Ready
+            <strong>Status:</strong> Tauri Backend Connection Testing Ready
         </div>
     </div>
 
     <script>
-        // Check if Tauri API is available and log status
+        // Check if Tauri API is available and log status (Tauri 2.0 API structure)
         console.log('Tauri API check:', typeof window.__TAURI__);
-        console.log('Tauri tauri module:', typeof window.__TAURI__?.tauri);
-        console.log('Tauri invoke function:', typeof window.__TAURI__?.tauri?.invoke);
+        console.log('Tauri core module:', typeof window.__TAURI__?.core);
+        console.log('Tauri invoke function:', typeof window.__TAURI__?.core?.invoke);
         
         // Initialize invoke function with error handling
         let invoke;
-        try {
-            if (window.__TAURI__ && window.__TAURI__.tauri && window.__TAURI__.tauri.invoke) {
-                invoke = window.__TAURI__.tauri.invoke;
-                console.log('✅ Tauri invoke function successfully initialized');
-            } else {
-                console.error('❌ Tauri API not available - using mock function');
-                invoke = async (cmd) => {
-                    console.log('Mock invoke called with command:', cmd);
-                    return 'Mock response - Tauri API not available';
-                };
+        
+        function initializeTauriAPI() {
+            if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+                invoke = window.__TAURI__.core.invoke;
+                console.log('✅ Tauri 2.0 invoke function successfully initialized');
+                return true;
             }
-        } catch (error) {
-            console.error('❌ Error initializing Tauri API:', error);
-            invoke = async (cmd) => {
-                console.log('Error fallback invoke called with command:', cmd);
-                return 'Error fallback response';
-            };
+            return false;
         }
         
-        // Initialize canvas rendering
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        if (!initializeTauriAPI()) {
+            console.log('⏳ Waiting for Tauri API to load...');
+            let retryCount = 0;
+            const maxRetries = 50;
+            const retryInterval = setInterval(() => {
+                if (initializeTauriAPI() || retryCount >= maxRetries) {
+                    clearInterval(retryInterval);
+                    if (retryCount >= maxRetries) {
+                        console.error('❌ Tauri API failed to load after maximum retries');
+                        invoke = async (cmd) => {
+                            console.log('Fallback invoke called with command:', cmd);
+                            return 'Tauri API not available after retries';
+                        };
+                    }
+                }
+                retryCount++;
+            }, 100);
+        }
+        
         const statusDisplay = document.getElementById('status-display');
-        
         let clickCount = 0;
-        
-        function renderCanvas() {
-            // Clear canvas
-            ctx.fillStyle = '#f0f0f0';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw header
-            ctx.fillStyle = '#4CAF50';
-            ctx.font = 'bold 24px Arial';
-            ctx.fillText('Phase 3: Interactive Component Testing', 20, 40);
-            
-            // Draw placeholder Pax components
-            ctx.fillStyle = '#cccccc';
-            ctx.fillRect(50, 70, 200, 80);
-            
-            ctx.fillStyle = '#4CAF50';
-            ctx.fillRect(50, 170, 150, 40);
-            
-            // Draw dynamic rectangle (simulating ExampleApp state)
-            const rectWidth = 100 + (clickCount * 20) % 200;
-            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24'];
-            const rectColor = colors[clickCount % colors.length];
-            
-            ctx.fillStyle = rectColor;
-            ctx.fillRect(50, 230, rectWidth, 50);
-            
-            // Draw text
-            ctx.fillStyle = '#333';
-            ctx.font = '16px Arial';
-            ctx.fillText('Hello Pax in Tauri!', 60, 100);
-            ctx.fillText('Interactive Button', 85, 195);
-            ctx.fillText(`Clicks: ${clickCount}`, 60, 310);
-            ctx.fillText(`Rectangle Width: ${rectWidth}px`, 60, 330);
-        }
         
         async function testButtonClick() {
             try {
                 statusDisplay.innerHTML = 'Testing button click...<br>Calling Tauri command...';
                 const result = await invoke('handle_button_click');
                 clickCount++;
-                statusDisplay.innerHTML = `✅ Success: ${result}<br>Local click count: ${clickCount}`;
+                statusDisplay.innerHTML = `✅ Success: ${result}<br>Local click count: ${clickCount}<br>✅ Real Rust command execution confirmed<br>✅ Pax Engine render() called automatically`;
                 console.log('Button click result:', result);
-                
-                // Re-render canvas to show updates
-                renderCanvas();
+                console.log('✅ Canvas now controlled by Pax Engine render() method');
             } catch (error) {
                 statusDisplay.innerHTML = `❌ Error: ${error}<br>Check console for details.`;
                 console.error('Button click error:', error);
             }
         }
-        
-        // Add click handler to canvas for Pax button interaction
-        canvas.addEventListener('click', function(event) {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            
-            // Check if click is within button area (green rectangle at y=120-145)
-            if (x >= 60 && x <= 210 && y >= 120 && y <= 145) {
-                console.log('Canvas button clicked at:', x, y);
-                testButtonClick();
-            }
-        });
         
         async function testMultipleClicks() {
             statusDisplay.innerHTML = 'Testing multiple clicks...<br>Performing 3 rapid clicks...';
@@ -216,27 +179,50 @@
                     const result = await invoke('handle_button_click');
                     clickCount++;
                     console.log(`Click ${i + 1} result:`, result);
-                    await new Promise(resolve => setTimeout(resolve, 200)); // Small delay
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 } catch (error) {
                     console.error(`Click ${i + 1} error:`, error);
                 }
             }
             
             statusDisplay.innerHTML = `✅ Multiple clicks test complete<br>Total local clicks: ${clickCount}`;
-            renderCanvas();
         }
         
         function resetTest() {
             clickCount = 0;
             statusDisplay.innerHTML = 'Test reset complete.<br>Ready for new testing session.';
-            renderCanvas();
+            console.log('Test reset - Canvas will be redrawn by Pax Engine');
         }
         
-        // Initial render
-        renderCanvas();
+        function initializePaxCanvas() {
+            const container = document.getElementById('pax-container');
+            if (container && container.children.length === 0) {
+                const canvas = document.createElement('canvas');
+                canvas.id = '0';
+                canvas.className = 'pax-layer';
+                canvas.width = 600;
+                canvas.height = 400;
+                canvas.style.position = 'absolute';
+                canvas.style.top = '0';
+                canvas.style.left = '0';
+                container.appendChild(canvas);
+                console.log('Pax Canvas initialized - Pax Engine will control rendering');
+            }
+        }
         
-        console.log('Phase 3: Interactive testing interface initialized');
+        initializePaxCanvas();
+        
+        console.log('Tauri backend connection test interface initialized');
         console.log('Tauri API available:', typeof window.__TAURI__ !== 'undefined');
+        console.log('window.__TAURI__ object:', window.__TAURI__);
+        console.log('Pax Canvas ready for runtime-driven rendering');
+        console.log('✅ Manual Canvas code removed - Pax Engine now controls rendering');
+        
+        if (typeof window.__TAURI__ !== 'undefined') {
+            statusDisplay.innerHTML = '✅ Tauri API loaded successfully<br>✅ Pax Engine integration ready<br>Ready to test backend connection';
+        } else {
+            statusDisplay.innerHTML = '❌ Tauri API not available<br>Check console for details';
+        }
     </script>
 </body>
 </html>

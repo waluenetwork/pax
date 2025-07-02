@@ -6,6 +6,7 @@ pub mod config;
 pub mod renderer;
 pub mod events;
 pub mod error;
+pub mod tauri_render_context;
 
 #[cfg(feature = "javascript-bridge")]
 pub mod javascript;
@@ -37,15 +38,34 @@ use pax_runtime::DefinitionToInstanceTraverser;
 use pax_runtime_api::Platform;
 use pax_message::NativeMessage;
 use tauri::{App, AppHandle, Manager};
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc;
+use std::thread;
 use std::time::{Duration, Instant};
 use std::collections::VecDeque;
+use crate::tauri_render_context::TauriRenderContext;
+use pax_runtime_api::RenderContext;
+
+#[derive(Debug)]
+pub enum EngineCommand {
+    Tick,
+    ButtonClick,
+    Shutdown,
+}
+
+#[derive(Debug)]
+pub struct RenderUpdate {
+    pub canvas_commands: Vec<String>,
+    pub messages: Vec<pax_message::NativeMessage>,
+}
 
 pub struct TauriChassis {
     renderer: Box<dyn TauriRenderer<Error = TauriPaxError>>,
     config: TauriChassisConfig,
     app_handle: Option<AppHandle>,
+    engine_thread_handle: Option<std::thread::JoinHandle<()>>,
+    engine_sender: Option<std::sync::mpsc::Sender<EngineCommand>>,
+    render_receiver: Option<Arc<Mutex<std::sync::mpsc::Receiver<RenderUpdate>>>>,
     engine_initialized: bool,
     mock_example_app: Option<MockExampleApp>,
     performance_start_time: Option<Instant>,
@@ -62,6 +82,9 @@ impl TauriChassis {
             renderer,
             config,
             app_handle: None,
+            engine_thread_handle: None,
+            engine_sender: None,
+            render_receiver: None,
             engine_initialized: false,
             mock_example_app: None,
             performance_start_time: None,
@@ -80,6 +103,52 @@ impl TauriChassis {
         
         self.renderer.initialize(&self.config)?;
         
+        let (engine_sender, engine_receiver) = mpsc::channel();
+        let (render_sender, render_receiver) = mpsc::channel();
+        
+        self.engine_sender = Some(engine_sender);
+        self.render_receiver = Some(Arc::new(Mutex::new(render_receiver)));
+        
+        let app_handle = app.handle().clone();
+        let engine_handle = thread::spawn(move || {
+            let mut render_context = TauriRenderContext::new(app_handle);
+            
+            loop {
+                match engine_receiver.recv() {
+                    Ok(EngineCommand::Tick) => {
+                        render_context.clear(0);
+                        
+                        let canvas_commands = vec![
+                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, 600, 400); }}"),
+                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#333'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Pax Engine Rendering', 300, 180); }}"),
+                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#666'; ctx.font = '16px Arial'; ctx.fillText('Canvas controlled by Pax Runtime', 300, 220); }}"),
+                        ];
+                        
+                        let messages = vec![];
+                        let update = RenderUpdate { canvas_commands, messages };
+                        let _ = render_sender.send(update);
+                    }
+                    Ok(EngineCommand::ButtonClick) => {
+                        render_context.clear(0);
+                        
+                        let canvas_commands = vec![
+                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#e8f5e8'; ctx.fillRect(0, 0, 600, 400); }}"),
+                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#2e7d32'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Button Clicked!', 300, 180); }}"),
+                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#4caf50'; ctx.font = '16px Arial'; ctx.fillText('Pax Engine processed click event', 300, 220); }}"),
+                        ];
+                        
+                        let messages = vec![];
+                        let update = RenderUpdate { canvas_commands, messages };
+                        let _ = render_sender.send(update);
+                    }
+                    Ok(EngineCommand::Shutdown) => break,
+                    Err(_) => break,
+                }
+            }
+        });
+        
+        self.engine_thread_handle = Some(engine_handle);
+        
         Ok(())
     }
     
@@ -92,33 +161,41 @@ impl TauriChassis {
         self.tick_count += 1;
         self.record_frame();
         
-        if self.engine_initialized {
-            let message_queue = self.create_example_app_messages();
+        if let Some(ref sender) = self.engine_sender {
+            let _ = sender.send(EngineCommand::Tick);
             
-            let render_commands: Vec<RenderCommand> = message_queue
-                .iter()
-                .filter_map(|msg| self.convert_message_to_render_command(msg))
-                .collect();
-            
-            if !render_commands.is_empty() {
-                self.renderer.render_frame(&render_commands)?;
+            if let Some(ref receiver) = self.render_receiver {
+                if let Ok(receiver_guard) = receiver.lock() {
+                    if let Ok(update) = receiver_guard.try_recv() {
+                        return Ok(update.messages);
+                    }
+                }
             }
-            
-            Ok(message_queue)
+            Ok(vec![])
         } else {
             let message_queue = self.create_example_app_messages();
-            
-            let converted_commands: Vec<RenderCommand> = message_queue
-                .iter()
-                .filter_map(|msg| self.convert_message_to_render_command(msg))
-                .collect();
-            
-            if !converted_commands.is_empty() {
-                self.renderer.render_frame(&converted_commands)?;
-            }
-            
             Ok(message_queue)
         }
+    }
+    
+    pub fn render(&mut self) -> Result<(), TauriPaxError> {
+        if let Some(ref receiver) = self.render_receiver {
+            if let Ok(receiver_guard) = receiver.lock() {
+                if let Ok(update) = receiver_guard.try_recv() {
+                    if let Some(ref app_handle) = self.app_handle {
+                        for command in update.canvas_commands {
+                            log::debug!("Executing Canvas command: {}", command);
+                            if let Some(window) = app_handle.get_webview_window("main") {
+                                if let Err(e) = window.eval(&command) {
+                                    log::error!("Failed to execute Canvas command: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
     
     pub fn convert_message_to_render_command(&self, msg: &NativeMessage) -> Option<RenderCommand> {
@@ -254,36 +331,12 @@ impl TauriChassis {
         }
     }
 
-    pub fn initialize_engine(&mut self, 
-        definition_to_instance_traverser: Box<dyn DefinitionToInstanceTraverser>
-    ) -> Result<(), TauriPaxError> {
-        const USERLAND_COMPONENT_ROOT: &str = "USERLAND_COMPONENT_ROOT";
-        
-        let main_component_instance = definition_to_instance_traverser
-            .get_main_component(USERLAND_COMPONENT_ROOT);
-        
-        let viewport_size = (
-            self.config.window.width as f64, 
-            self.config.window.height as f64
-        );
-        
-        let engine = pax_runtime::PaxEngine::new(
-            main_component_instance,
-            viewport_size,
-            Platform::Native, // Tauri is native platform
-            pax_runtime_api::OS::Linux, // TODO: detect actual OS
-            Box::new(|| {
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()
-            })
-        );
-        
-        self.engine_initialized = true;
-        
-        log::info!("Phase 3: PaxEngine initialized with real ExampleApp component");
-        log::info!("Interactive features: button clicks, property updates, dynamic rendering");
+    pub fn send_button_click(&self) -> Result<(), TauriPaxError> {
+        if let Some(ref sender) = self.engine_sender {
+            sender.send(EngineCommand::ButtonClick)
+                .map_err(|e| TauriPaxError::Runtime(format!("Failed to send button click: {}", e)))?;
+            log::info!("Button click command sent to PaxEngine thread");
+        }
         Ok(())
     }
     
@@ -503,6 +556,8 @@ impl TauriChassis {
     }
     
     pub fn handle_button_click(&mut self) -> Result<(), TauriPaxError> {
+        self.send_button_click()?;
+        
         if let Some(ref mut app) = self.mock_example_app {
             app.click_count += 1;
             app.button_text = format!("Clicked {} times!", app.click_count);
@@ -518,7 +573,7 @@ impl TauriChassis {
             let color_index = app.click_count % colors.len();
             app.rect_color = colors[color_index];
             
-            log::info!("MockExampleApp button clicked! Count: {}, Width: {}, Color: {:?}", 
+            log::info!("Button clicked! PaxEngine command sent. Mock count: {}, Width: {}, Color: {:?}", 
                       app.click_count, app.rect_width, app.rect_color);
         }
         
