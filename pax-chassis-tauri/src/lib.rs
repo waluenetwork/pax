@@ -7,6 +7,7 @@ pub mod renderer;
 pub mod events;
 pub mod error;
 pub mod tauri_render_context;
+pub mod pax_engine_integration;
 
 #[cfg(feature = "javascript-bridge")]
 pub mod javascript;
@@ -33,9 +34,10 @@ pub struct MockExampleApp {
     pub click_count: usize,
 }
 
+
 use pax_runtime::PaxEngine;
 use pax_runtime::DefinitionToInstanceTraverser;
-use pax_runtime_api::Platform;
+use pax_runtime_api::{Platform, OS};
 use pax_message::NativeMessage;
 use tauri::{App, AppHandle, Manager};
 use std::sync::{Arc, Mutex};
@@ -111,6 +113,9 @@ impl TauriChassis {
         
         let app_handle = app.handle().clone();
         let engine_handle = thread::spawn(move || {
+            use crate::pax_engine_integration::PaxEngineComponent;
+            
+            let mut pax_engine_component = PaxEngineComponent::default();
             let mut render_context = TauriRenderContext::new(app_handle);
             
             loop {
@@ -118,24 +123,17 @@ impl TauriChassis {
                     Ok(EngineCommand::Tick) => {
                         render_context.clear(0);
                         
-                        let canvas_commands = vec![
-                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, window.paxCanvas.width, window.paxCanvas.height); }}"),
-                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#333'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Pax Engine Rendering', window.paxCanvas.width/2, window.paxCanvas.height/2 - 20); }}"),
-                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#666'; ctx.font = '16px Arial'; ctx.fillText('Canvas controlled by Pax Runtime', window.paxCanvas.width/2, window.paxCanvas.height/2 + 20); }}"),
-                        ];
+                        let canvas_commands = pax_engine_component.get_render_commands();
                         
                         let messages = vec![];
                         let update = RenderUpdate { canvas_commands, messages };
                         let _ = render_sender.send(update);
                     }
                     Ok(EngineCommand::ButtonClick) => {
+                        pax_engine_component.handle_button_click();
                         render_context.clear(0);
                         
-                        let canvas_commands = vec![
-                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#e8f5e8'; ctx.fillRect(0, 0, window.paxCanvas.width, window.paxCanvas.height); }}"),
-                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#2e7d32'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Button Clicked!', window.paxCanvas.width/2, window.paxCanvas.height/2 - 20); }}"),
-                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#4caf50'; ctx.font = '16px Arial'; ctx.fillText('Pax Engine processed click event', window.paxCanvas.width/2, window.paxCanvas.height/2 + 20); }}"),
-                        ];
+                        let canvas_commands = pax_engine_component.get_click_render_commands();
                         
                         let messages = vec![];
                         let update = RenderUpdate { canvas_commands, messages };
@@ -190,6 +188,10 @@ impl TauriChassis {
                                     log::error!("Failed to execute Canvas command: {:?}", e);
                                 }
                             }
+                        }
+                        
+                        for message in update.messages {
+                            log::debug!("Processing PaxEngine message: {:?}", message);
                         }
                     }
                 }

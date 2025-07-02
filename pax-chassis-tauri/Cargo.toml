@@ -12,6 +12,7 @@ pax-runtime = { version = "0.38.3", path = "../pax-runtime" }
 pax-runtime-api = { version = "0.38.3", path = "../pax-runtime-api" }
 pax-message = { version = "0.38.3", path = "../pax-message" }
 pax-chassis-common = { version = "0.38.3", path = "../pax-chassis-common" }
+pax-manifest = { version = "0.38.3", path = "../pax-manifest" }
 
 # Tauri dependencies
 tauri = { version = "2.0" }

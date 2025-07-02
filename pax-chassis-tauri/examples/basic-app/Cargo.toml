@@ -7,7 +7,9 @@ edition = "2021"
 pax-chassis-tauri = { path = "../.." }
 pax-engine = { path = "../../../pax-engine" }
 pax-std = { path = "../../../pax-std" }
+pax-macro = { path = "../../../pax-macro" }
 pax-runtime = { path = "../../../pax-runtime" }
+pax-runtime-api = { path = "../../../pax-runtime-api" }
 pax-manifest = { path = "../../../pax-manifest" }
 tauri = { version = "2.0", features = [] }
 env_logger = "0.11"
