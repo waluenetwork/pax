@@ -133,19 +133,35 @@ impl RenderContext for TauriRenderContext {
         }
     }
 
-    fn fill(&mut self, _layer: usize, _path: kurbo::BezPath, _fill: &Fill) {
+    fn fill(&mut self, layer: usize, path: kurbo::BezPath, fill: &Fill) {
+        let fill_style = match fill {
+            Fill::Solid(color) => {
+                let rgba = color.to_rgba_0_1();
+                format!("rgba({}, {}, {}, {})", 
+                    (rgba[0] * 255.0) as u8, 
+                    (rgba[1] * 255.0) as u8, 
+                    (rgba[2] * 255.0) as u8, 
+                    rgba[3])
+            },
+            _ => "rgba(100, 150, 200, 0.8)".to_string(),
+        };
+
+        let path_commands = self.bezpath_to_canvas_commands(&path);
+        
         let script = format!(
             r#"
             {{
                 const element = document.getElementById('{}');
                 if (element) {{
                     const ctx = element.getContext('2d');
-                    ctx.fillStyle = 'rgba(100, 150, 200, 0.8)';
+                    ctx.fillStyle = '{}';
+                    ctx.beginPath();
+                    {};
                     ctx.fill();
                 }}
             }}
             "#,
-            _layer
+            layer, fill_style, path_commands
         );
         let _ = self.execute_js(&script);
     }
@@ -256,5 +272,21 @@ impl RenderContext for TauriRenderContext {
 
     fn get_image_size(&mut self, _path: &str) -> Option<(usize, usize)> {
         None
+    }
+}
+
+impl TauriRenderContext {
+    fn bezpath_to_canvas_commands(&self, path: &kurbo::BezPath) -> String {
+        let mut commands = Vec::new();
+        for el in path.elements() {
+            match el {
+                kurbo::PathEl::MoveTo(pt) => commands.push(format!("ctx.moveTo({}, {})", pt.x, pt.y)),
+                kurbo::PathEl::LineTo(pt) => commands.push(format!("ctx.lineTo({}, {})", pt.x, pt.y)),
+                kurbo::PathEl::QuadTo(pt1, pt2) => commands.push(format!("ctx.quadraticCurveTo({}, {}, {}, {})", pt1.x, pt1.y, pt2.x, pt2.y)),
+                kurbo::PathEl::CurveTo(pt1, pt2, pt3) => commands.push(format!("ctx.bezierCurveTo({}, {}, {}, {}, {}, {})", pt1.x, pt1.y, pt2.x, pt2.y, pt3.x, pt3.y)),
+                kurbo::PathEl::ClosePath => commands.push("ctx.closePath()".to_string()),
+            }
+        }
+        commands.join("; ")
     }
 }

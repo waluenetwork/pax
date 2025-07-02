@@ -4,6 +4,7 @@ use pax_std::*;
 use pax_runtime::InstanceNode;
 
 pub mod pax_engine_integration;
+pub mod cartridge;
 
 #[pax]
 #[engine_import_path("pax_engine")]
