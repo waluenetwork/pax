@@ -45,7 +45,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 use std::collections::VecDeque;
-use crate::tauri_render_context::TauriRenderContext;
+// use crate::tauri_render_context::TauriRenderContext; // Disabled - using JavaScriptRenderer instead
 use pax_runtime_api::RenderContext;
 
 #[derive(Debug)]
@@ -116,12 +116,12 @@ impl TauriChassis {
             use crate::pax_engine_integration::PaxEngineComponent;
             
             let mut pax_engine_component = PaxEngineComponent::default();
-            let mut render_context = TauriRenderContext::new(app_handle);
+            // let mut render_context = TauriRenderContext::new(app_handle); // Disabled - using JavaScriptRenderer instead
             
             loop {
                 match engine_receiver.recv() {
                     Ok(EngineCommand::Tick) => {
-                        render_context.clear(0);
+                        // render_context.clear(0); // Disabled - using JavaScriptRenderer instead
                         
                         let canvas_commands = pax_engine_component.get_render_commands();
                         
@@ -131,7 +131,7 @@ impl TauriChassis {
                     }
                     Ok(EngineCommand::ButtonClick) => {
                         pax_engine_component.handle_button_click();
-                        render_context.clear(0);
+                        // render_context.clear(0); // Disabled - using JavaScriptRenderer instead
                         
                         let canvas_commands = pax_engine_component.get_click_render_commands();
                         
