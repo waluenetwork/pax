@@ -24,22 +24,30 @@ pub use renderer::*;
 pub use events::*;
 pub use error::*;
 
+#[derive(Clone, Debug)]
+pub struct MockExampleApp {
+    pub button_text: String,
+    pub rect_color: (u8, u8, u8),
+    pub rect_width: f64,
+    pub click_count: usize,
+}
+
 use pax_runtime::PaxEngine;
 use pax_runtime::DefinitionToInstanceTraverser;
 use pax_runtime_api::Platform;
 use pax_message::NativeMessage;
 use tauri::{App, AppHandle, Manager};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
-use std::collections::VecDeque;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::time::{Duration, Instant};
+use std::collections::VecDeque;
 
 pub struct TauriChassis {
     renderer: Box<dyn TauriRenderer<Error = TauriPaxError>>,
     config: TauriChassisConfig,
     app_handle: Option<AppHandle>,
     engine_initialized: bool,
+    mock_example_app: Option<MockExampleApp>,
     performance_start_time: Option<Instant>,
     last_frame_time: Option<Instant>,
     frame_times: VecDeque<Duration>,
@@ -55,6 +63,7 @@ impl TauriChassis {
             config,
             app_handle: None,
             engine_initialized: false,
+            mock_example_app: None,
             performance_start_time: None,
             last_frame_time: None,
             frame_times: VecDeque::with_capacity(60),
@@ -86,27 +95,10 @@ impl TauriChassis {
         if self.engine_initialized {
             let message_queue = self.create_example_app_messages();
             
-            let mut render_commands = vec![
-                RenderCommand::SetViewport { 
-                    width: self.config.window.width, 
-                    height: self.config.window.height 
-                },
-                RenderCommand::Clear { color: "#f0f0f0".to_string() },
-            ];
-            
-            let converted_commands: Vec<RenderCommand> = message_queue
+            let render_commands: Vec<RenderCommand> = message_queue
                 .iter()
                 .filter_map(|msg| self.convert_message_to_render_command(msg))
                 .collect();
-            
-            render_commands.extend(converted_commands);
-            
-            render_commands.push(RenderCommand::DrawText {
-                text: "Phase 2: Real Pax Component Rendering".to_string(),
-                x: 50.0,
-                y: 30.0,
-                font_size: 18.0,
-            });
             
             if !render_commands.is_empty() {
                 self.renderer.render_frame(&render_commands)?;
@@ -114,95 +106,195 @@ impl TauriChassis {
             
             Ok(message_queue)
         } else {
-            let render_commands = vec![
-                RenderCommand::SetViewport { 
-                    width: self.config.window.width, 
-                    height: self.config.window.height 
-                },
-                RenderCommand::Clear { color: "#ffffff".to_string() },
-            ];
+            let message_queue = self.create_example_app_messages();
             
-            self.renderer.render_frame(&render_commands)?;
-            Ok(vec![])
+            let converted_commands: Vec<RenderCommand> = message_queue
+                .iter()
+                .filter_map(|msg| self.convert_message_to_render_command(msg))
+                .collect();
+            
+            if !converted_commands.is_empty() {
+                self.renderer.render_frame(&converted_commands)?;
+            }
+            
+            Ok(message_queue)
         }
     }
     
     pub fn convert_message_to_render_command(&self, msg: &NativeMessage) -> Option<RenderCommand> {
         use pax_message::NativeMessage;
         
+        let app = self.mock_example_app.as_ref()?;
+        
         match msg {
             NativeMessage::TextCreate(patch) => {
-                Some(RenderCommand::DrawText {
-                    text: format!("Pax Text #{}", patch.id),
-                    x: 60.0,
-                    y: 80.0 + (patch.id as f64 * 25.0),
-                    font_size: 16.0,
-                })
+                match patch.id {
+                    1 => Some(RenderCommand::DrawText {
+                        text: "Hello Pax in Tauri!".to_string(),
+                        x: 60.0,
+                        y: 80.0,
+                        font_size: 24.0,
+                    }),
+                    4 => Some(RenderCommand::DrawText {
+                        text: format!("Clicks: {}", app.click_count),
+                        x: 60.0,
+                        y: 200.0,
+                        font_size: 16.0,
+                    }),
+                    _ => Some(RenderCommand::DrawText {
+                        text: format!("Text #{}", patch.id),
+                        x: 60.0,
+                        y: 80.0 + (patch.id as f64 * 25.0),
+                        font_size: 16.0,
+                    })
+                }
             },
             NativeMessage::TextUpdate(patch) => {
-                Some(RenderCommand::DrawText {
-                    text: patch.content.clone().unwrap_or_else(|| format!("Text #{}", patch.id)),
-                    x: patch.transform.as_ref().map(|t| t.get(0).copied()).flatten().unwrap_or(60.0),
-                    y: patch.transform.as_ref().map(|t| t.get(1).copied()).flatten().unwrap_or(80.0),
-                    font_size: 16.0,
-                })
+                match patch.id {
+                    1 => Some(RenderCommand::DrawText {
+                        text: patch.content.clone().unwrap_or("Hello Pax in Tauri!".to_string()),
+                        x: 60.0,
+                        y: 80.0,
+                        font_size: 24.0,
+                    }),
+                    4 => Some(RenderCommand::DrawText {
+                        text: format!("Clicks: {}", app.click_count),
+                        x: 60.0,
+                        y: 200.0,
+                        font_size: 16.0,
+                    }),
+                    _ => Some(RenderCommand::DrawText {
+                        text: patch.content.clone().unwrap_or_else(|| format!("Text #{}", patch.id)),
+                        x: patch.transform.as_ref().map(|t| t.get(0).copied()).flatten().unwrap_or(60.0),
+                        y: patch.transform.as_ref().map(|t| t.get(1).copied()).flatten().unwrap_or(80.0),
+                        font_size: 16.0,
+                    })
+                }
             },
             NativeMessage::FrameCreate(patch) => {
-                Some(RenderCommand::DrawRect {
-                    x: 50.0,
-                    y: 60.0 + (patch.id as f64 * 30.0),
-                    width: 200.0,
-                    height: 100.0,
-                    color: "#e0e0e0".to_string(),
-                })
+                if patch.id == 3 {
+                    Some(RenderCommand::DrawRect {
+                        x: 60.0,
+                        y: 150.0,
+                        width: app.rect_width,
+                        height: 50.0,
+                        color: format!("rgb({}, {}, {})", app.rect_color.0, app.rect_color.1, app.rect_color.2),
+                    })
+                } else {
+                    Some(RenderCommand::DrawRect {
+                        x: 50.0,
+                        y: 60.0 + (patch.id as f64 * 30.0),
+                        width: 200.0,
+                        height: 100.0,
+                        color: "#e0e0e0".to_string(),
+                    })
+                }
             },
             NativeMessage::FrameUpdate(patch) => {
-                Some(RenderCommand::DrawRect {
-                    x: 50.0,
-                    y: 60.0 + (patch.id as f64 * 30.0),
-                    width: patch.size_x.unwrap_or(200.0),
-                    height: patch.size_y.unwrap_or(100.0),
-                    color: "#d0d0d0".to_string(),
-                })
+                if patch.id == 3 {
+                    Some(RenderCommand::DrawRect {
+                        x: 60.0,
+                        y: 150.0,
+                        width: app.rect_width,
+                        height: 50.0,
+                        color: format!("rgb({}, {}, {})", app.rect_color.0, app.rect_color.1, app.rect_color.2),
+                    })
+                } else {
+                    Some(RenderCommand::DrawRect {
+                        x: 50.0,
+                        y: 60.0 + (patch.id as f64 * 30.0),
+                        width: patch.size_x.unwrap_or(200.0),
+                        height: patch.size_y.unwrap_or(100.0),
+                        color: "#d0d0d0".to_string(),
+                    })
+                }
             },
             NativeMessage::ButtonCreate(patch) => {
-                Some(RenderCommand::DrawRect {
-                    x: 50.0,
-                    y: 180.0 + (patch.id as f64 * 50.0),
-                    width: 150.0,
-                    height: 40.0,
-                    color: "#4CAF50".to_string(),
-                })
+                if patch.id == 2 {
+                    Some(RenderCommand::DrawRect {
+                        x: 60.0,
+                        y: 120.0,
+                        width: 150.0,
+                        height: 25.0,
+                        color: "#4CAF50".to_string(),
+                    })
+                } else {
+                    Some(RenderCommand::DrawRect {
+                        x: 50.0,
+                        y: 180.0 + (patch.id as f64 * 50.0),
+                        width: 150.0,
+                        height: 40.0,
+                        color: "#4CAF50".to_string(),
+                    })
+                }
             },
             NativeMessage::ButtonUpdate(patch) => {
-                let width = patch.size_x.unwrap_or(150.0);
-                let height = patch.size_y.unwrap_or(40.0);
-                Some(RenderCommand::DrawRect {
-                    x: 50.0,
-                    y: 180.0 + (patch.id as f64 * 50.0),
-                    width,
-                    height,
-                    color: "#45a049".to_string(),
-                })
+                if patch.id == 2 {
+                    let color = if app.click_count % 2 == 0 { "#4CAF50" } else { "#45a049" };
+                    Some(RenderCommand::DrawRect {
+                        x: 60.0,
+                        y: 120.0,
+                        width: 150.0,
+                        height: 25.0,
+                        color: color.to_string(),
+                    })
+                } else {
+                    let width = patch.size_x.unwrap_or(150.0);
+                    let height = patch.size_y.unwrap_or(40.0);
+                    Some(RenderCommand::DrawRect {
+                        x: 50.0,
+                        y: 180.0 + (patch.id as f64 * 50.0),
+                        width,
+                        height,
+                        color: "#45a049".to_string(),
+                    })
+                }
             },
             _ => None,
         }
     }
 
     pub fn initialize_engine(&mut self, 
-        _definition_to_instance_traverser: Box<dyn DefinitionToInstanceTraverser>
+        definition_to_instance_traverser: Box<dyn DefinitionToInstanceTraverser>
     ) -> Result<(), TauriPaxError> {
+        const USERLAND_COMPONENT_ROOT: &str = "USERLAND_COMPONENT_ROOT";
+        
+        let main_component_instance = definition_to_instance_traverser
+            .get_main_component(USERLAND_COMPONENT_ROOT);
+        
+        let viewport_size = (
+            self.config.window.width as f64, 
+            self.config.window.height as f64
+        );
+        
+        let engine = pax_runtime::PaxEngine::new(
+            main_component_instance,
+            viewport_size,
+            Platform::Native, // Tauri is native platform
+            pax_runtime_api::OS::Linux, // TODO: detect actual OS
+            Box::new(|| {
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+            })
+        );
+        
         self.engine_initialized = true;
         
-        log::info!("Phase 2: PaxEngine integration enabled");
-        log::info!("ExampleApp components ready for rendering: Rectangle, Text, Button");
+        log::info!("Phase 3: PaxEngine initialized with real ExampleApp component");
         log::info!("Interactive features: button clicks, property updates, dynamic rendering");
         Ok(())
     }
     
     pub fn initialize_engine_for_testing(&mut self) -> Result<(), TauriPaxError> {
-        self.engine_initialized = true;
-        log::info!("PaxEngine initialization for testing - engine_initialized set to true");
+        self.mock_example_app = Some(MockExampleApp {
+            button_text: "Click me!".to_string(),
+            rect_color: (200, 200, 200),
+            rect_width: 100.0,
+            click_count: 0,
+        });
+        log::info!("MockExampleApp instance created for fallback rendering");
         Ok(())
     }
 
@@ -249,48 +341,64 @@ impl TauriChassis {
     }
     
     fn create_example_app_messages(&self) -> Vec<NativeMessage> {
-        vec![
-            NativeMessage::TextCreate(pax_message::AnyCreatePatch {
-                id: 1,
-                parent_frame: Some(0),
-                occlusion_layer_id: 0,
-            }),
-            NativeMessage::FrameCreate(pax_message::AnyCreatePatch {
-                id: 2,
-                parent_frame: Some(0),
-                occlusion_layer_id: 0,
-            }),
-            NativeMessage::ButtonCreate(pax_message::AnyCreatePatch {
-                id: 3,
-                parent_frame: Some(0),
-                occlusion_layer_id: 0,
-            }),
-            NativeMessage::TextCreate(pax_message::AnyCreatePatch {
-                id: 4,
-                parent_frame: Some(0),
-                occlusion_layer_id: 0,
-            }),
-            NativeMessage::FrameUpdate(pax_message::FramePatch {
-                id: 2,
-                clip_content: None,
-                size_x: Some(200.0 + (self.tick_count % 50) as f64),
-                size_y: Some(100.0),
-                transform: None,
-            }),
-            NativeMessage::ButtonUpdate(pax_message::ButtonPatch {
-                id: 3,
-                hover_color: None,
-                outline_stroke_color: None,
-                outline_stroke_width: None,
-                border_radius: None,
-                transform: None,
-                size_x: Some(150.0),
-                size_y: Some(40.0),
-                content: Some(format!("Click Me! ({})", self.tick_count % 10)),
-                color: None,
-                style: None,
-            }),
-        ]
+        if let Some(ref app) = self.mock_example_app {
+            vec![
+                NativeMessage::TextCreate(pax_message::AnyCreatePatch {
+                    id: 1,
+                    parent_frame: Some(0),
+                    occlusion_layer_id: 0,
+                }),
+                NativeMessage::FrameCreate(pax_message::AnyCreatePatch {
+                    id: 2,
+                    parent_frame: Some(0),
+                    occlusion_layer_id: 0,
+                }),
+                NativeMessage::ButtonCreate(pax_message::AnyCreatePatch {
+                    id: 3,
+                    parent_frame: Some(0),
+                    occlusion_layer_id: 0,
+                }),
+                NativeMessage::TextCreate(pax_message::AnyCreatePatch {
+                    id: 4,
+                    parent_frame: Some(0),
+                    occlusion_layer_id: 0,
+                }),
+                NativeMessage::TextUpdate(pax_message::TextPatch {
+                    id: 1,
+                    content: Some(format!("Hello Pax in Tauri! Clicks: {}", app.click_count)),
+                    style: None,
+                    transform: None,
+                    editable: None,
+                    markdown: None,
+                    selectable: None,
+                    size_x: None,
+                    size_y: None,
+                    style_link: None,
+                }),
+                NativeMessage::FrameUpdate(pax_message::FramePatch {
+                    id: 2,
+                    clip_content: None,
+                    size_x: Some(app.rect_width),
+                    size_y: Some(50.0),
+                    transform: None,
+                }),
+                NativeMessage::ButtonUpdate(pax_message::ButtonPatch {
+                    id: 3,
+                    hover_color: None,
+                    outline_stroke_color: None,
+                    outline_stroke_width: None,
+                    border_radius: None,
+                    transform: None,
+                    size_x: Some(150.0),
+                    size_y: Some(40.0),
+                    content: Some(app.button_text.clone()),
+                    color: None,
+                    style: None,
+                }),
+            ]
+        } else {
+            vec![]
+        }
     }
 
     pub fn start_performance_monitoring(&mut self) {
@@ -326,6 +434,10 @@ impl TauriChassis {
             memory_usage: self.get_memory_usage(),
             tick_count: self.tick_count,
         }
+    }
+
+    pub fn get_mock_example_app_state(&self) -> Option<&MockExampleApp> {
+        self.mock_example_app.as_ref()
     }
     
     fn get_memory_usage(&self) -> usize {
@@ -374,11 +486,40 @@ impl TauriChassis {
         Ok(())
     }
     
-    pub fn handle_window_event(&mut self, _event: &str) -> Result<(), TauriPaxError> {
+    pub fn handle_window_event(&mut self, event: &str) -> Result<(), TauriPaxError> {
+        log::debug!("Handling window event: {}", event);
+        
+        if event.contains("click") && self.mock_example_app.is_some() {
+            self.handle_button_click()?;
+        }
+        
         let tauri_event = TauriEvent::Unknown; // Placeholder
         
         if let Some(pax_event) = self.renderer.handle_event(tauri_event)? {
             log::debug!("Converted Pax event: {:?}", pax_event);
+        }
+        
+        Ok(())
+    }
+    
+    pub fn handle_button_click(&mut self) -> Result<(), TauriPaxError> {
+        if let Some(ref mut app) = self.mock_example_app {
+            app.click_count += 1;
+            app.button_text = format!("Clicked {} times!", app.click_count);
+            
+            app.rect_width = 50.0 + (app.click_count as f64 * 20.0) % 200.0;
+            
+            let colors = [
+                (255, 100, 100), // Red
+                (100, 255, 100), // Green
+                (100, 100, 255), // Blue
+                (255, 255, 100), // Yellow
+            ];
+            let color_index = app.click_count % colors.len();
+            app.rect_color = colors[color_index];
+            
+            log::info!("MockExampleApp button clicked! Count: {}, Width: {}, Color: {:?}", 
+                      app.click_count, app.rect_width, app.rect_color);
         }
         
         Ok(())

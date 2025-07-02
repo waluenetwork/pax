@@ -9,6 +9,7 @@ pax-engine = { path = "../../../../pax-engine" }
 pax-std = { path = "../../../../pax-std" }
 pax-runtime = { path = "../../../../pax-runtime" }
 pax-manifest = { path = "../../../../pax-manifest" }
+pax-macro = { path = "../../../../pax-macro" }
 tauri = { version = "2.0", features = [] }
 env_logger = "0.11"
 

@@ -9,7 +9,8 @@
   },
   "app": {
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousDisableAssetCspModification": true
     },
     "windows": [
       {
@@ -20,6 +21,12 @@
         "height": 600,
         "center": true
       }
-    ]
-  }
+    ],
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  },
+  "plugins": {}
 }
