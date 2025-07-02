@@ -62,7 +62,8 @@ pub struct RenderUpdate {
 }
 
 pub struct TauriChassis {
-    renderer: Box<dyn TauriRenderer<Error = TauriPaxError>>,
+    // renderer: Box<dyn TauriRenderer<Error = TauriPaxError>>, // Disabled - JavaScriptRenderer disabled for now
+    renderer: Option<Box<dyn TauriRenderer<Error = TauriPaxError>>>, // Placeholder for disabled renderer
     config: TauriChassisConfig,
     app_handle: Option<AppHandle>,
     engine_thread_handle: Option<std::thread::JoinHandle<()>>,
@@ -78,10 +79,10 @@ pub struct TauriChassis {
 
 impl TauriChassis {
     pub fn new(config: TauriChassisConfig) -> Result<Self, TauriPaxError> {
-        let renderer = Self::create_renderer(&config)?;
+        // let renderer = Self::create_renderer(&config)?; // Disabled - JavaScriptRenderer disabled for now
         
         Ok(Self {
-            renderer,
+            renderer: None, // Disabled - JavaScriptRenderer disabled for now
             config,
             app_handle: None,
             engine_thread_handle: None,
@@ -99,11 +100,34 @@ impl TauriChassis {
     pub fn initialize(&mut self, app: &App) -> Result<(), TauriPaxError> {
         self.app_handle = Some(app.handle().clone());
         
-        if let Some(js_renderer) = self.renderer.as_any_mut().downcast_mut::<javascript::JavaScriptRenderer>() {
-            js_renderer.set_app_handle(app.handle().clone());
-        }
+        // if let Some(js_renderer) = self.renderer.as_any_mut().downcast_mut::<javascript::JavaScriptRenderer>() {
+        //     js_renderer.set_app_handle(app.handle().clone());
+        // }
         
-        self.renderer.initialize(&self.config)?;
+        // self.renderer.initialize(&self.config)?; // Disabled - JavaScriptRenderer disabled for now
+        
+        if let Some(ref app_handle) = self.app_handle {
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let canvas_script = r#"
+                    if (!window.paxCanvas) {
+                        const canvas = document.createElement('canvas');
+                        canvas.id = 'pax-canvas';
+                        canvas.width = 600;
+                        canvas.height = 400;
+                        canvas.style.position = 'absolute';
+                        canvas.style.top = '0';
+                        canvas.style.left = '0';
+                        canvas.style.width = '100%';
+                        canvas.style.height = '100%';
+                        document.body.appendChild(canvas);
+                        window.paxCanvas = canvas;
+                        window.paxCtx = canvas.getContext('2d');
+                        console.log('Direct Canvas initialized (JavaScriptRenderer disabled)');
+                    }
+                "#;
+                let _ = window.eval(canvas_script);
+            }
+        }
         
         let (engine_sender, engine_receiver) = mpsc::channel();
         let (render_sender, render_receiver) = mpsc::channel();
@@ -151,7 +175,7 @@ impl TauriChassis {
     }
     
     pub fn initialize_for_testing(&mut self) -> Result<(), TauriPaxError> {
-        self.renderer.initialize(&self.config)?;
+        // self.renderer.initialize(&self.config)?; // Disabled - JavaScriptRenderer disabled for now
         Ok(())
     }
 
@@ -535,9 +559,9 @@ impl TauriChassis {
     }
     
     pub fn render_frame(&mut self) -> Result<(), TauriPaxError> {
-        let commands = vec![]; // Placeholder
+        let commands: Vec<crate::renderer::RenderCommand> = vec![]; // Placeholder
         
-        self.renderer.render_frame(&commands)?;
+        // self.renderer.render_frame(&commands)?; // Disabled - JavaScriptRenderer disabled for now
         Ok(())
     }
     
@@ -550,9 +574,9 @@ impl TauriChassis {
         
         let tauri_event = TauriEvent::Unknown; // Placeholder
         
-        if let Some(pax_event) = self.renderer.handle_event(tauri_event)? {
-            log::debug!("Converted Pax event: {:?}", pax_event);
-        }
+        // if let Some(pax_event) = self.renderer.handle_event(tauri_event)? { // Disabled - JavaScriptRenderer disabled for now
+        //     log::debug!("Converted Pax event: {:?}", pax_event);
+        // }
         
         Ok(())
     }
@@ -583,7 +607,7 @@ impl TauriChassis {
     }
     
     pub fn shutdown(&mut self) -> Result<(), TauriPaxError> {
-        self.renderer.shutdown()?;
+        // self.renderer.shutdown()?; // Disabled - JavaScriptRenderer disabled for now
         Ok(())
     }
 }
