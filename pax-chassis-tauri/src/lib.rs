@@ -137,31 +137,37 @@ impl TauriChassis {
         
         let app_handle = app.handle().clone();
         let engine_handle = thread::spawn(move || {
-            use crate::pax_engine_integration::PaxEngineComponent;
+            use crate::pax_engine_integration::PaxDSLRenderer;
             
-            let mut pax_engine_component = PaxEngineComponent::default();
-            // let mut render_context = TauriRenderContext::new(app_handle); // Disabled - using JavaScriptRenderer instead
+            let mut pax_dsl_renderer = PaxDSLRenderer::new();
             
             loop {
                 match engine_receiver.recv() {
                     Ok(EngineCommand::Tick) => {
-                        // render_context.clear(0); // Disabled - using JavaScriptRenderer instead
+                        let canvas_commands = pax_dsl_renderer.get_render_commands();
                         
-                        let canvas_commands = pax_engine_component.get_render_commands();
+                        let update = RenderUpdate {
+                            messages: vec![],
+                            canvas_commands,
+                        };
                         
-                        let messages = vec![];
-                        let update = RenderUpdate { canvas_commands, messages };
-                        let _ = render_sender.send(update);
+                        if let Err(_) = render_sender.send(update) {
+                            break;
+                        }
                     }
                     Ok(EngineCommand::ButtonClick) => {
-                        pax_engine_component.handle_button_click();
-                        // render_context.clear(0); // Disabled - using JavaScriptRenderer instead
+                        pax_dsl_renderer.handle_button_click();
                         
-                        let canvas_commands = pax_engine_component.get_click_render_commands();
+                        let canvas_commands = pax_dsl_renderer.get_click_render_commands();
                         
-                        let messages = vec![];
-                        let update = RenderUpdate { canvas_commands, messages };
-                        let _ = render_sender.send(update);
+                        let update = RenderUpdate {
+                            messages: vec![],
+                            canvas_commands,
+                        };
+                        
+                        if let Err(_) = render_sender.send(update) {
+                            break;
+                        }
                     }
                     Ok(EngineCommand::Shutdown) => break,
                     Err(_) => break,

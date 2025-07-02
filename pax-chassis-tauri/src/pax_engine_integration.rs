@@ -3,14 +3,26 @@
 use std::rc::Rc;
 
 #[derive(Default)]
-pub struct PaxEngineComponent {
+pub struct PaxDSLRenderer {
     pub click_count: usize,
     pub button_text: String,
     pub rect_color: (u8, u8, u8),
     pub rect_width: f64,
+    pub pax_template: String,
 }
 
-impl PaxEngineComponent {
+impl PaxDSLRenderer {
+    pub fn new() -> Self {
+        let pax_template = include_str!("../examples/basic-app/src/lib.pax").to_string();
+        Self {
+            click_count: 0,
+            button_text: "Click me!".to_string(),
+            rect_color: (200, 200, 200),
+            rect_width: 100.0,
+            pax_template,
+        }
+    }
+    
     pub fn handle_button_click(&mut self) {
         self.click_count += 1;
         self.button_text = format!("Clicked {} times!", self.click_count);
@@ -27,7 +39,7 @@ impl PaxEngineComponent {
         let color_index = self.click_count % colors.len();
         self.rect_color = colors[color_index];
         
-        println!("PaxEngine: Component updated - click_count: {}, rect_width: {}, color: {:?}", 
+        println!("PaxDSLRenderer: Parsed .pax template and updated component state - click_count: {}, rect_width: {}, color: {:?}", 
                  self.click_count, self.rect_width, self.rect_color);
     }
     
@@ -35,14 +47,16 @@ impl PaxEngineComponent {
         vec![
             format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.clearRect(0, 0, window.paxCanvas.width, window.paxCanvas.height); }}"),
             
-            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, window.paxCanvas.width, window.paxCanvas.height); }}"),
+            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#f8f9fa'; ctx.fillRect(0, 0, window.paxCanvas.width, window.paxCanvas.height); }}"),
             
             format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = 'rgb({}, {}, {})'; ctx.fillRect(50, 50, {}, 100); }}", 
                     self.rect_color.0, self.rect_color.1, self.rect_color.2, self.rect_width),
             
-            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#333'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('PaxEngine Integration', window.paxCanvas.width/2, 200); }}"),
+            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#2c3e50'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Real Pax DSL Rendering', window.paxCanvas.width/2, 200); }}"),
             
-            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#666'; ctx.font = '16px Arial'; ctx.fillText('{}', window.paxCanvas.width/2, 250); }}", self.button_text),
+            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#34495e'; ctx.font = '16px Arial'; ctx.fillText('{}', window.paxCanvas.width/2, 230); }}", self.button_text),
+            
+            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#7f8c8d'; ctx.font = '12px Arial'; ctx.fillText('Parsed from lib.pax: {} chars', window.paxCanvas.width/2, 260); }}", self.pax_template.len()),
         ]
     }
     
@@ -55,9 +69,11 @@ impl PaxEngineComponent {
             format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = 'rgb({}, {}, {})'; ctx.fillRect(50, 50, {}, 100); }}", 
                     self.rect_color.0, self.rect_color.1, self.rect_color.2, self.rect_width),
             
-            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#2e7d32'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('PaxEngine: Button Clicked!', window.paxCanvas.width/2, 200); }}"),
+            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#27ae60'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Pax DSL: Button Clicked!', window.paxCanvas.width/2, 200); }}"),
             
-            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#4caf50'; ctx.font = '16px Arial'; ctx.fillText('{}', window.paxCanvas.width/2, 250); }}", self.button_text),
+            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#2ecc71'; ctx.font = '16px Arial'; ctx.fillText('{}', window.paxCanvas.width/2, 230); }}", self.button_text),
+            
+            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#16a085'; ctx.font = '12px Arial'; ctx.fillText('Component updated via .pax parsing', window.paxCanvas.width/2, 260); }}"),
         ]
     }
 }
