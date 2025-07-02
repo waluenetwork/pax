@@ -1,5 +1,34 @@
 
+use pax_runtime::*;
+use pax_runtime_api::*;
+use pax_manifest::*;
+use std::cell::RefCell;
 use std::rc::Rc;
+
+
+pub fn create_pax_engine() -> Result<PaxEngine, Box<dyn std::error::Error>> {
+    let args = InstantiationArgs {
+        prototypical_common_properties_factory: Box::new(|_, _| None),
+        prototypical_properties_factory: Box::new(|_, _| None),
+        handler_registry: None,
+        children: None,
+        component_template: None,
+        template_node_identifier: None,
+        properties_scope_factory: None,
+    };
+    
+    let main_component_instance = ComponentInstance::instantiate(args);
+    
+    let engine = pax_runtime::PaxEngine::new(
+        main_component_instance,
+        (600.0, 400.0),
+        Platform::Web,
+        OS::Linux,
+        Box::new(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+    );
+    
+    Ok(engine)
+}
 
 #[derive(Default)]
 pub struct PaxDSLRenderer {
