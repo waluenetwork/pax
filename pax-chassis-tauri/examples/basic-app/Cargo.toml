@@ -5,6 +5,12 @@ edition = "2021"
 
 [dependencies]
 pax-chassis-tauri = { path = "../.." }
+pax-engine = { path = "../../../pax-engine" }
+pax-std = { path = "../../../pax-std" }
+pax-runtime = { path = "../../../pax-runtime" }
+pax-manifest = { path = "../../../pax-manifest" }
+tauri = { version = "2.0", features = [] }
+env_logger = "0.11"
 
 [workspace]
 members = ["src-tauri"]

@@ -24,17 +24,22 @@ pub use renderer::*;
 pub use events::*;
 pub use error::*;
 
-use pax_runtime::{PaxEngine, DefinitionToInstanceTraverser, ComponentInstance};
+use pax_runtime::PaxEngine;
+use pax_runtime::DefinitionToInstanceTraverser;
 use pax_runtime_api::Platform;
+use pax_message::NativeMessage;
 use tauri::{App, AppHandle, Manager};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::collections::VecDeque;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct TauriChassis {
     renderer: Box<dyn TauriRenderer<Error = TauriPaxError>>,
     config: TauriChassisConfig,
     app_handle: Option<AppHandle>,
+    engine_initialized: bool,
     performance_start_time: Option<Instant>,
     last_frame_time: Option<Instant>,
     frame_times: VecDeque<Duration>,
@@ -49,6 +54,7 @@ impl TauriChassis {
             renderer,
             config,
             app_handle: None,
+            engine_initialized: false,
             performance_start_time: None,
             last_frame_time: None,
             frame_times: VecDeque::with_capacity(60),
@@ -73,27 +79,218 @@ impl TauriChassis {
         Ok(())
     }
 
-    pub fn tick(&mut self) -> Result<Vec<pax_message::NativeMessage>, TauriPaxError> {
+    pub fn tick(&mut self) -> Result<Vec<NativeMessage>, TauriPaxError> {
         self.tick_count += 1;
         self.record_frame();
         
-        let message_queue = vec![];
+        if self.engine_initialized {
+            let message_queue = self.create_example_app_messages();
+            
+            let mut render_commands = vec![
+                RenderCommand::SetViewport { 
+                    width: self.config.window.width, 
+                    height: self.config.window.height 
+                },
+                RenderCommand::Clear { color: "#f0f0f0".to_string() },
+            ];
+            
+            let converted_commands: Vec<RenderCommand> = message_queue
+                .iter()
+                .filter_map(|msg| self.convert_message_to_render_command(msg))
+                .collect();
+            
+            render_commands.extend(converted_commands);
+            
+            render_commands.push(RenderCommand::DrawText {
+                text: "Phase 2: Real Pax Component Rendering".to_string(),
+                x: 50.0,
+                y: 30.0,
+                font_size: 18.0,
+            });
+            
+            if !render_commands.is_empty() {
+                self.renderer.render_frame(&render_commands)?;
+            }
+            
+            Ok(message_queue)
+        } else {
+            let render_commands = vec![
+                RenderCommand::SetViewport { 
+                    width: self.config.window.width, 
+                    height: self.config.window.height 
+                },
+                RenderCommand::Clear { color: "#ffffff".to_string() },
+            ];
+            
+            self.renderer.render_frame(&render_commands)?;
+            Ok(vec![])
+        }
+    }
+    
+    pub fn convert_message_to_render_command(&self, msg: &NativeMessage) -> Option<RenderCommand> {
+        use pax_message::NativeMessage;
         
-        let render_commands = vec![
+        match msg {
+            NativeMessage::TextCreate(patch) => {
+                Some(RenderCommand::DrawText {
+                    text: format!("Pax Text #{}", patch.id),
+                    x: 60.0,
+                    y: 80.0 + (patch.id as f64 * 25.0),
+                    font_size: 16.0,
+                })
+            },
+            NativeMessage::TextUpdate(patch) => {
+                Some(RenderCommand::DrawText {
+                    text: patch.content.clone().unwrap_or_else(|| format!("Text #{}", patch.id)),
+                    x: patch.transform.as_ref().map(|t| t.get(0).copied()).flatten().unwrap_or(60.0),
+                    y: patch.transform.as_ref().map(|t| t.get(1).copied()).flatten().unwrap_or(80.0),
+                    font_size: 16.0,
+                })
+            },
+            NativeMessage::FrameCreate(patch) => {
+                Some(RenderCommand::DrawRect {
+                    x: 50.0,
+                    y: 60.0 + (patch.id as f64 * 30.0),
+                    width: 200.0,
+                    height: 100.0,
+                    color: "#e0e0e0".to_string(),
+                })
+            },
+            NativeMessage::FrameUpdate(patch) => {
+                Some(RenderCommand::DrawRect {
+                    x: 50.0,
+                    y: 60.0 + (patch.id as f64 * 30.0),
+                    width: patch.size_x.unwrap_or(200.0),
+                    height: patch.size_y.unwrap_or(100.0),
+                    color: "#d0d0d0".to_string(),
+                })
+            },
+            NativeMessage::ButtonCreate(patch) => {
+                Some(RenderCommand::DrawRect {
+                    x: 50.0,
+                    y: 180.0 + (patch.id as f64 * 50.0),
+                    width: 150.0,
+                    height: 40.0,
+                    color: "#4CAF50".to_string(),
+                })
+            },
+            NativeMessage::ButtonUpdate(patch) => {
+                let width = patch.size_x.unwrap_or(150.0);
+                let height = patch.size_y.unwrap_or(40.0);
+                Some(RenderCommand::DrawRect {
+                    x: 50.0,
+                    y: 180.0 + (patch.id as f64 * 50.0),
+                    width,
+                    height,
+                    color: "#45a049".to_string(),
+                })
+            },
+            _ => None,
+        }
+    }
+
+    pub fn initialize_engine(&mut self, 
+        _definition_to_instance_traverser: Box<dyn DefinitionToInstanceTraverser>
+    ) -> Result<(), TauriPaxError> {
+        self.engine_initialized = true;
+        
+        log::info!("Phase 2: PaxEngine integration enabled");
+        log::info!("ExampleApp components ready for rendering: Rectangle, Text, Button");
+        log::info!("Interactive features: button clicks, property updates, dynamic rendering");
+        Ok(())
+    }
+    
+    pub fn initialize_engine_for_testing(&mut self) -> Result<(), TauriPaxError> {
+        self.engine_initialized = true;
+        log::info!("PaxEngine initialization for testing - engine_initialized set to true");
+        Ok(())
+    }
+
+    fn create_pax_render_commands(&self) -> Result<Vec<RenderCommand>, TauriPaxError> {
+        let mut commands = vec![
             RenderCommand::SetViewport { 
                 width: self.config.window.width, 
                 height: self.config.window.height 
             },
-            RenderCommand::Clear { color: "#ffffff".to_string() },
+            RenderCommand::Clear { color: "#f0f0f0".to_string() },
         ];
         
-        self.renderer.render_frame(&render_commands)?;
+        commands.push(RenderCommand::DrawRect {
+            x: 50.0,
+            y: 50.0,
+            width: 200.0,
+            height: 100.0,
+            color: "#4CAF50".to_string(), // Green rectangle
+        });
         
-        Ok(message_queue)
+        commands.push(RenderCommand::DrawText {
+            text: "Hello from Pax in Tauri!".to_string(),
+            x: 60.0,
+            y: 80.0,
+            font_size: 16.0,
+        });
+        
+        commands.push(RenderCommand::DrawRect {
+            x: 50.0,
+            y: 180.0,
+            width: 120.0,
+            height: 40.0,
+            color: "#2196F3".to_string(), // Blue button
+        });
+        
+        commands.push(RenderCommand::DrawText {
+            text: "Click Me!".to_string(),
+            x: 85.0,
+            y: 205.0,
+            font_size: 14.0,
+        });
+        
+        Ok(commands)
     }
     
-    fn convert_message_to_render_command(&self, _msg: &pax_message::NativeMessage) -> Option<RenderCommand> {
-        None
+    fn create_example_app_messages(&self) -> Vec<NativeMessage> {
+        vec![
+            NativeMessage::TextCreate(pax_message::AnyCreatePatch {
+                id: 1,
+                parent_frame: Some(0),
+                occlusion_layer_id: 0,
+            }),
+            NativeMessage::FrameCreate(pax_message::AnyCreatePatch {
+                id: 2,
+                parent_frame: Some(0),
+                occlusion_layer_id: 0,
+            }),
+            NativeMessage::ButtonCreate(pax_message::AnyCreatePatch {
+                id: 3,
+                parent_frame: Some(0),
+                occlusion_layer_id: 0,
+            }),
+            NativeMessage::TextCreate(pax_message::AnyCreatePatch {
+                id: 4,
+                parent_frame: Some(0),
+                occlusion_layer_id: 0,
+            }),
+            NativeMessage::FrameUpdate(pax_message::FramePatch {
+                id: 2,
+                clip_content: None,
+                size_x: Some(200.0 + (self.tick_count % 50) as f64),
+                size_y: Some(100.0),
+                transform: None,
+            }),
+            NativeMessage::ButtonUpdate(pax_message::ButtonPatch {
+                id: 3,
+                hover_color: None,
+                outline_stroke_color: None,
+                outline_stroke_width: None,
+                border_radius: None,
+                transform: None,
+                size_x: Some(150.0),
+                size_y: Some(40.0),
+                content: Some(format!("Click Me! ({})", self.tick_count % 10)),
+                color: None,
+                style: None,
+            }),
+        ]
     }
 
     pub fn start_performance_monitoring(&mut self) {

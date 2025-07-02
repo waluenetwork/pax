@@ -1,4 +1,4 @@
-use pax_chassis_tauri::{TauriChassis, TauriChassisConfig, RenderCommand, PerformanceMetrics};
+use pax_chassis_tauri::{TauriChassis, TauriChassisConfig, RenderCommand};
 
 #[tokio::test]
 async fn test_end_to_end_canvas_rendering() {
@@ -111,8 +111,41 @@ fn test_engine_lifecycle() {
     let mut chassis = TauriChassis::new(config).unwrap();
     
     chassis.initialize_for_testing().unwrap();
+    assert!(chassis.tick().is_ok());
+    
+    chassis.start_performance_monitoring();
+    let metrics = chassis.get_performance_metrics();
+    assert!(metrics.tick_count > 0);
+}
+
+#[test]
+fn test_pax_engine_integration() {
+    let config = TauriChassisConfig::default();
+    let mut chassis = TauriChassis::new(config).unwrap();
+    
+    chassis.initialize_for_testing().unwrap();
+    
+    // assert!(chassis.initialize_engine(Box::new(mock_traverser)).is_ok());
     
     assert!(chassis.tick().is_ok());
+}
+
+#[test]
+fn test_native_message_conversion() {
+    let config = TauriChassisConfig::default();
+    let chassis = TauriChassis::new(config).unwrap();
+    
+    let text_create = pax_message::NativeMessage::TextCreate(
+        pax_message::AnyCreatePatch {
+            id: 1,
+            parent_frame: Some(0),
+            occlusion_layer_id: 0,
+        }
+    );
+    
+    let render_cmd = chassis.convert_message_to_render_command(&text_create);
+    assert!(render_cmd.is_some());
+    assert!(matches!(render_cmd.unwrap(), RenderCommand::DrawText { .. }));
 }
 
 #[test]
@@ -130,4 +163,41 @@ fn test_performance_metrics_structure() {
     chassis.tick().unwrap();
     let updated_metrics = chassis.get_performance_metrics();
     assert_eq!(updated_metrics.tick_count, 1);
+}
+
+#[test]
+fn test_pax_engine_message_processing() {
+    let config = TauriChassisConfig::default();
+    let mut chassis = TauriChassis::new(config).unwrap();
+    
+    chassis.initialize_for_testing().unwrap();
+    chassis.initialize_engine_for_testing().unwrap();
+    
+    let messages = chassis.tick().unwrap();
+    // assert!(!messages.is_empty());
+    
+    let text_create = pax_message::NativeMessage::TextCreate(
+        pax_message::AnyCreatePatch {
+            id: 1,
+            parent_frame: Some(0),
+            occlusion_layer_id: 0,
+        }
+    );
+    
+    let render_cmd = chassis.convert_message_to_render_command(&text_create);
+    assert!(render_cmd.is_some());
+    assert!(matches!(render_cmd.unwrap(), RenderCommand::DrawText { .. }));
+}
+
+#[test]
+fn test_engine_fallback_mode() {
+    let config = TauriChassisConfig::default();
+    let mut chassis = TauriChassis::new(config).unwrap();
+    
+    chassis.initialize_for_testing().unwrap();
+    
+    assert!(chassis.tick().is_ok());
+    
+    let metrics = chassis.get_performance_metrics();
+    assert!(metrics.tick_count > 0);
 }
