@@ -21,7 +21,7 @@ impl TauriRenderContext {
             dirty_canvases: Rc::new(RefCell::new(vec![false])),
         }
     }
-    
+
     pub fn execute_js(&self, script: &str) -> Result<(), String> {
         if let Some(window) = self.app_handle.get_webview_window("main") {
             window.eval(script).map_err(|e| format!("JavaScript execution error: {:?}", e))?;
@@ -40,7 +40,7 @@ impl RenderContext for TauriRenderContext {
     fn resize_layers_to(&mut self, layer_count: usize, dirty_canvases: Rc<RefCell<Vec<bool>>>) {
         self.layers = layer_count;
         self.dirty_canvases = dirty_canvases;
-        
+
         let script = format!(
             r#"
             const container = document.getElementById('pax-container');
@@ -49,7 +49,7 @@ impl RenderContext for TauriRenderContext {
                 for (let i = {}; i < canvases.length; i++) {{
                     canvases[i].remove();
                 }}
-                
+
                 for (let i = canvases.length; i < {}; i++) {{
                     const newCanvas = document.createElement('canvas');
                     newCanvas.id = i.toString();
@@ -65,7 +65,7 @@ impl RenderContext for TauriRenderContext {
             "#,
             layer_count, layer_count
         );
-        
+
         if let Err(e) = self.execute_js(&script) {
             eprintln!("Failed to resize layers: {}", e);
         }
@@ -84,7 +84,7 @@ impl RenderContext for TauriRenderContext {
             "#,
             layer
         );
-        
+
         if let Err(e) = self.execute_js(&script) {
             eprintln!("Failed to clear layer {}: {}", layer, e);
         }
@@ -104,7 +104,7 @@ impl RenderContext for TauriRenderContext {
             "#,
             layer
         );
-        
+
         if let Err(e) = self.execute_js(&script) {
             eprintln!("Failed to flush layer {}: {}", layer, e);
         }
@@ -127,7 +127,7 @@ impl RenderContext for TauriRenderContext {
             });
         }
         "#;
-        
+
         if let Err(e) = self.execute_js(script) {
             eprintln!("Failed to resize canvases: {}", e);
         }
@@ -227,8 +227,8 @@ impl RenderContext for TauriRenderContext {
                 }}
             }}
             "#,
-            _layer, _transform.as_coeffs()[0], _transform.as_coeffs()[1], 
-            _transform.as_coeffs()[2], _transform.as_coeffs()[3], 
+            _layer, _transform.as_coeffs()[0], _transform.as_coeffs()[1],
+            _transform.as_coeffs()[2], _transform.as_coeffs()[3],
             _transform.as_coeffs()[4], _transform.as_coeffs()[5]
         );
         let _ = self.execute_js(&script);
