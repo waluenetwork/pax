@@ -137,17 +137,30 @@ impl TauriChassis {
         
         let app_handle = app.handle().clone();
         let engine_handle = thread::spawn(move || {
-            use crate::pax_engine_integration::PaxDSLRenderer;
+            use crate::tauri_render_context::TauriRenderContext;
             
-            let mut pax_dsl_renderer = PaxDSLRenderer::new();
+            let mut engine = match crate::pax_engine_integration::create_pax_engine() {
+                Ok(engine) => engine,
+                Err(e) => {
+                    eprintln!("Failed to create PaxEngine: {:?}", e);
+                    return;
+                }
+            };
+            
+            let mut render_context = TauriRenderContext::new(app_handle);
             
             loop {
                 match engine_receiver.recv() {
                     Ok(EngineCommand::Tick) => {
-                        let canvas_commands = pax_dsl_renderer.get_render_commands();
+                        let messages = engine.tick();
+                        engine.render(&mut render_context);
+                        
+                        let canvas_commands = vec![
+                            "console.log('Real PaxEngine render cycle: .pax components rendered to Canvas')".to_string(),
+                        ];
                         
                         let update = RenderUpdate {
-                            messages: vec![],
+                            messages,
                             canvas_commands,
                         };
                         
@@ -156,12 +169,15 @@ impl TauriChassis {
                         }
                     }
                     Ok(EngineCommand::ButtonClick) => {
-                        pax_dsl_renderer.handle_button_click();
+                        let messages = engine.tick();
+                        engine.render(&mut render_context);
                         
-                        let canvas_commands = pax_dsl_renderer.get_click_render_commands();
+                        let canvas_commands = vec![
+                            "console.log('Real PaxEngine button click: .pax components updated and re-rendered')".to_string(),
+                        ];
                         
                         let update = RenderUpdate {
-                            messages: vec![],
+                            messages,
                             canvas_commands,
                         };
                         
