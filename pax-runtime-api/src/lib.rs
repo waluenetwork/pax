@@ -58,7 +58,7 @@ pub trait RenderContext {
     // clip/transform
     fn save(&mut self, layer: usize);
     fn restore(&mut self, layer: usize);
-    fn clip(&mut self, layer: usize, path: BezPath);
+    fn clip(&mut self, layer: usize, path: kurbo::BezPath);
     fn transform(&mut self, layer: usize, affine: kurbo::Affine);
 
     // images
