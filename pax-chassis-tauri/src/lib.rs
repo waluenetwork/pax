@@ -119,9 +119,9 @@ impl TauriChassis {
                         render_context.clear(0);
                         
                         let canvas_commands = vec![
-                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, 600, 400); }}"),
-                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#333'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Pax Engine Rendering', 300, 180); }}"),
-                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#666'; ctx.font = '16px Arial'; ctx.fillText('Canvas controlled by Pax Runtime', 300, 220); }}"),
+                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, window.paxCanvas.width, window.paxCanvas.height); }}"),
+                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#333'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Pax Engine Rendering', window.paxCanvas.width/2, window.paxCanvas.height/2 - 20); }}"),
+                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#666'; ctx.font = '16px Arial'; ctx.fillText('Canvas controlled by Pax Runtime', window.paxCanvas.width/2, window.paxCanvas.height/2 + 20); }}"),
                         ];
                         
                         let messages = vec![];
@@ -132,9 +132,9 @@ impl TauriChassis {
                         render_context.clear(0);
                         
                         let canvas_commands = vec![
-                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#e8f5e8'; ctx.fillRect(0, 0, 600, 400); }}"),
-                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#2e7d32'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Button Clicked!', 300, 180); }}"),
-                            format!("const canvas = document.getElementById('0'); if (canvas) {{ const ctx = canvas.getContext('2d'); ctx.fillStyle = '#4caf50'; ctx.font = '16px Arial'; ctx.fillText('Pax Engine processed click event', 300, 220); }}"),
+                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#e8f5e8'; ctx.fillRect(0, 0, window.paxCanvas.width, window.paxCanvas.height); }}"),
+                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#2e7d32'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.fillText('Button Clicked!', window.paxCanvas.width/2, window.paxCanvas.height/2 - 20); }}"),
+                            format!("if (window.paxCanvas) {{ const ctx = window.paxCanvas.getContext('2d'); ctx.fillStyle = '#4caf50'; ctx.font = '16px Arial'; ctx.fillText('Pax Engine processed click event', window.paxCanvas.width/2, window.paxCanvas.height/2 + 20); }}"),
                         ];
                         
                         let messages = vec![];

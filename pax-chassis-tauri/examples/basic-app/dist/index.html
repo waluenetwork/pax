@@ -195,19 +195,7 @@
         }
         
         function initializePaxCanvas() {
-            const container = document.getElementById('pax-container');
-            if (container && container.children.length === 0) {
-                const canvas = document.createElement('canvas');
-                canvas.id = '0';
-                canvas.className = 'pax-layer';
-                canvas.width = 600;
-                canvas.height = 400;
-                canvas.style.position = 'absolute';
-                canvas.style.top = '0';
-                canvas.style.left = '0';
-                container.appendChild(canvas);
-                console.log('Pax Canvas initialized - Pax Engine will control rendering');
-            }
+            console.log('Canvas initialization delegated to JavaScriptRenderer');
         }
         
         initializePaxCanvas();
